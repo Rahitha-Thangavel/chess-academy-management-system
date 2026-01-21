@@ -26,8 +26,8 @@ class BaseRegisterSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             'email': {'required': True},
-            'first_name': {'required': True},
-            'last_name': {'required': True},
+            'first_name': {'required': True, 'max_length': 75},
+            'last_name': {'required': True, 'max_length': 75},
             'phone': {'required': False, 'allow_blank': True}
         }
     
@@ -37,9 +37,19 @@ class BaseRegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "password": "Password fields didn't match."
             })
-        if len(data['password']) < 8:
+        
+        # Use Django's password validation
+        try:
+            # Create a temporary user object for validation
+            user = User(
+                email=data.get('email', ''),
+                first_name=data.get('first_name', ''),
+                last_name=data.get('last_name', '')
+            )
+            validate_password(data['password'], user=user)
+        except ValidationError as e:
             raise serializers.ValidationError({
-                "password": "Password must be at least 8 characters long."
+                "password": list(e.messages)
             })
         if User.objects.filter(email=data['email']).exists():
             raise serializers.ValidationError({
@@ -79,7 +89,7 @@ class ParentRegisterSerializer(BaseRegisterSerializer):
         # Remove coach-specific fields
         data.pop('hourly_rate', None)
         data.pop('qualification', None)
-        data.pop('date_of_birth', None)
+        # date_of_birth removed
         return data
     
     def create(self, validated_data):
@@ -110,7 +120,7 @@ class ClerkRegisterSerializer(BaseRegisterSerializer):
         # Remove coach-specific fields
         data.pop('hourly_rate', None)
         data.pop('qualification', None)
-        data.pop('date_of_birth', None)
+        # date_of_birth removed
         data.pop('address', None)
         data.pop('emergency_contact', None)
         return data
@@ -140,11 +150,11 @@ class CoachRegisterSerializer(BaseRegisterSerializer):
         allow_null=True
     )
     qualification = serializers.CharField(required=True)
-    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    # date_of_birth removed
 
     class Meta(BaseRegisterSerializer.Meta):
         fields = BaseRegisterSerializer.Meta.fields + [
-            'qualification', 'hourly_rate', 'date_of_birth'
+            'qualification', 'hourly_rate'
         ]
 
     def validate(self, data):
@@ -168,7 +178,7 @@ class CoachRegisterSerializer(BaseRegisterSerializer):
             phone=validated_data.get('phone', ''),
             qualification=validated_data.get('qualification', ''),
             hourly_rate=validated_data.get('hourly_rate'),
-            date_of_birth=validated_data.get('date_of_birth'),
+            # date_of_birth removed
             is_active=True,
             is_email_verified=True
         )
@@ -184,7 +194,7 @@ class AdminRegisterSerializer(BaseRegisterSerializer):
         data['role'] = User.Role.ADMIN
         data.pop('hourly_rate', None)
         data.pop('qualification', None)
-        data.pop('date_of_birth', None)
+        # date_of_birth removed
         data.pop('address', None)
         data.pop('emergency_contact', None)
         return data
@@ -223,7 +233,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'role',
-            'phone', 'address', 'date_of_birth', 'profile_picture',
+            'phone', 'address', 'profile_picture',
             'qualification', 'hourly_rate', 'emergency_contact',
             'is_email_verified', 'is_phone_verified',
             'created_at', 'updated_at'
@@ -234,7 +244,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'phone', 'address',
-                  'date_of_birth', 'profile_picture', 'emergency_contact']
+                  'profile_picture', 'emergency_contact']
 
 class EmailVerificationSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)

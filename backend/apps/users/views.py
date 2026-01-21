@@ -42,6 +42,9 @@ class RegisterView(APIView):
         elif role == 'COACH':
             serializer_class = CoachRegisterSerializer
         elif role == 'ADMIN':
+            # Only allow existing Admin users to create new Admin accounts
+            if not (request.user and request.user.is_authenticated and request.user.role == 'ADMIN'):
+                 return Response({'error': 'Unauthorized to create Admin account.'}, status=status.HTTP_403_FORBIDDEN)
             serializer_class = AdminRegisterSerializer
         else:
             return Response({
@@ -49,30 +52,48 @@ class RegisterView(APIView):
                 'error': f'Invalid role: {role}. Valid roles are: PARENT, CLERK, COACH, ADMIN'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        serializer = serializer_class(data=request.data)
+        from django.db import transaction
         
-        if serializer.is_valid():
-            print(f"DEBUG: Serializer is valid")
-            user = serializer.save()
-            print(f"DEBUG: User created: {user.email}")
-            print(f"DEBUG: User password in DB: {'SET' if user.password else 'EMPTY'}")
-            
-            if user.password:
-                print(f"DEBUG: Password hash: {user.password[:30]}...")
-                print(f"DEBUG: Check password: {user.check_password(request.data.get('password'))}")
-            
-            # Generate JWT tokens immediately
-            refresh = RefreshToken.for_user(user)
-            
+        user = None
+        token = None
+        
+        try:
+            # Database operations in transaction
+            with transaction.atomic():
+                serializer = serializer_class(data=request.data)
+                
+                if serializer.is_valid():
+                    user = serializer.save()
+                    # Generate verification token
+                    token = user.generate_verification_token()
+                else:
+                    return Response({
+                        'success': False,
+                        'errors': serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Email operations OUTSIDE transaction (to prevent DB locks during SMTP)
+            if user and token:
+                verification_url = f"{settings.FRONTEND_URL}/verify-email/{token}"
+                try:
+                    EmailService.send_verification_email(user, verification_url)
+                except Exception as email_error:
+                    print(f"Error sending email: {email_error}")
+                    # We accept that the user is created but email failed.
+                    # The frontend will show "Check Email", user can click "Resend" if needed.
+                
+                return Response({
+                    'success': True,
+                    'message': 'Registration successful! Please check your email to verify your account.',
+                    'email': user.email
+                }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print(f"Registration Error: {e}")
             return Response({
-                'success': True,
-                'message': f'Registration successful!',
-                'user': UserSerializer(user).data,
-                'tokens': {
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh)
-                }
-            }, status=status.HTTP_201_CREATED)
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         print(f"DEBUG: Serializer errors: {serializer.errors}")
         return Response({

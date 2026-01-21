@@ -27,8 +27,9 @@ class UserManager(BaseUserManager):
             user.set_unusable_password()  # For users without password
         
         # Skip email verification for testing
-        user.is_active = True
-        user.is_email_verified = True
+        # Default to inactive until email verification
+        user.is_active = False
+        user.is_email_verified = False
         
         user.save(using=self._db)
         return user
@@ -78,7 +79,9 @@ class User(AbstractUser):
     
     phone = models.CharField(_('phone number'), max_length=15, blank=True)
     address = models.TextField(_('address'), blank=True)
-    date_of_birth = models.DateField(_('date of birth'), null=True, blank=True)
+    phone = models.CharField(_('phone number'), max_length=15, blank=True)
+    address = models.TextField(_('address'), blank=True)
+    # date_of_birth removed as per new requirements
     profile_picture = models.ImageField(
         _('profile picture'),
         upload_to='profiles/',

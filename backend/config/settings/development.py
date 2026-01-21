@@ -42,6 +42,7 @@ AUTH_USER_MODEL = 'users.User'
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'  # Or your email provider
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
@@ -54,6 +55,7 @@ EMAIL_USE_SSL = False
 DEFAULT_FROM_EMAIL = 'noreply@chessacademy.com'
 
 # Frontend URLs (for email links)
+# Force React Frontend URL
 FRONTEND_URL = 'http://localhost:3000'
 BACKEND_URL = 'http://localhost:8000'
 
