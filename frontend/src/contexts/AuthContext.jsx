@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       const token = localStorage.getItem('access_token');
       const storedUser = localStorage.getItem('user');
-      
+
       if (token && storedUser) {
         try {
           // Verify token is valid by getting profile
@@ -46,18 +46,19 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authAPI.login(email, password);
-      
+
       // Store tokens and user data
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       localStorage.setItem('user', JSON.stringify(data.user));
-      
+
       setUser(data.user);
       return { success: true, user: data.user };
     } catch (err) {
       const errorMsg = err.response?.data?.error || 'Login failed. Please try again.';
       setError(errorMsg);
-      return { success: false, error: errorMsg };
+      // Return full data for handling specific cases like email verification
+      return { success: false, error: errorMsg, data: err.response?.data };
     }
   };
 
@@ -66,14 +67,18 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authAPI.register(userData);
-      
-      // Store tokens and user data
-      localStorage.setItem('access_token', data.access);
-      localStorage.setItem('refresh_token', data.refresh);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      
-      setUser(data.user);
-      return { success: true, user: data.user };
+
+      // Check for tokens or just success message
+      const tokens = data.tokens || (data.access ? data : null);
+
+      if (tokens) {
+        localStorage.setItem('access_token', tokens.access);
+        localStorage.setItem('refresh_token', tokens.refresh);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setUser(data.user);
+      }
+
+      return { success: true, ...data };
     } catch (err) {
       const errorMsg = err.response?.data || 'Registration failed. Please try again.';
       setError(errorMsg);

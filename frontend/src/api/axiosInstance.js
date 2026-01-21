@@ -29,12 +29,17 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config;
 
     // If error is 401 and we haven't tried refreshing yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // AND the request was not a login/register attempt (which should handle 401 naturally)
+    const isAuthRequest = originalRequest.url.includes('/login') ||
+      originalRequest.url.includes('/register') ||
+      originalRequest.url.includes('/auth/login');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
-        
+
         if (!refreshToken) {
           // No refresh token, logout user
           localStorage.removeItem('access_token');
@@ -51,13 +56,13 @@ axiosInstance.interceptors.response.use(
         );
 
         const { access } = response.data;
-        
+
         // Store new tokens
         localStorage.setItem('access_token', access);
-        
+
         // Update authorization header
         originalRequest.headers.Authorization = `Bearer ${access}`;
-        
+
         // Retry original request
         return axiosInstance(originalRequest);
       } catch (refreshError) {

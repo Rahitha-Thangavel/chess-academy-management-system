@@ -45,11 +45,20 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+
           <div className="col-md-3 mb-3">
             <div className="card text-white bg-info">
               <div className="card-body">
                 <h5 className="card-title">Reports</h5>
                 <p className="card-text">Generate reports and analytics</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3 mb-3">
+            <div className="card text-white bg-dark" style={{ cursor: 'pointer' }} onClick={() => window.location.href = '/admin/create-admin'}>
+              <div className="card-body">
+                <h5 className="card-title">Create Admin</h5>
+                <p className="card-text">Create new administrator account</p>
               </div>
             </div>
           </div>
