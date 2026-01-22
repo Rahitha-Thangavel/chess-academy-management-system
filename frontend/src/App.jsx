@@ -16,6 +16,11 @@ import VerifyEmailSent from './pages/auth/VerifyEmailSent';
 import AdminDashboard from './pages/admin/Dashboard';
 import CreateAdmin from './pages/admin/CreateAdmin';
 import ClerkDashboard from './pages/clerk/Dashboard';
+import ClerkLayout from './components/clerk/ClerkLayout';
+import ClerkStudents from './pages/clerk/Students';
+import ClerkAttendance from './pages/clerk/Attendance';
+import ClerkPayments from './pages/clerk/Payments';
+import ClerkTournaments from './pages/clerk/Tournaments';
 import CoachDashboard from './pages/coach/Dashboard';
 import CoachLayout from './components/coach/CoachLayout';
 import CoachClasses from './pages/coach/MyClasses';
@@ -73,11 +78,54 @@ function App() {
           />
 
           {/* Clerk Routes */}
+          {/* Clerk Routes */}
           <Route
             path="/clerk/dashboard"
             element={
               <ProtectedRoute allowedRoles={['CLERK']}>
-                <ClerkDashboard />
+                <ClerkLayout>
+                  <ClerkDashboard />
+                </ClerkLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clerk/students"
+            element={
+              <ProtectedRoute allowedRoles={['CLERK']}>
+                <ClerkLayout>
+                  <ClerkStudents />
+                </ClerkLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clerk/attendance"
+            element={
+              <ProtectedRoute allowedRoles={['CLERK']}>
+                <ClerkLayout>
+                  <ClerkAttendance />
+                </ClerkLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clerk/payments"
+            element={
+              <ProtectedRoute allowedRoles={['CLERK']}>
+                <ClerkLayout>
+                  <ClerkPayments />
+                </ClerkLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clerk/tournaments"
+            element={
+              <ProtectedRoute allowedRoles={['CLERK']}>
+                <ClerkLayout>
+                  <ClerkTournaments />
+                </ClerkLayout>
               </ProtectedRoute>
             }
           />
