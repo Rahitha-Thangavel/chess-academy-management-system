@@ -16,21 +16,18 @@ class UserManager(BaseUserManager):
             raise ValueError('The given email must be set')
         
         email = self.normalize_email(email)
-        
-        # Create the user instance
         user = self.model(email=email, **extra_fields)
         
-        # CRITICAL: Set the password BEFORE saving
         if password:
-            user.set_password(password)  # This hashes the password
+            user.set_password(password)
         else:
-            user.set_unusable_password()  # For users without password
+            user.set_unusable_password()
         
-        # Skip email verification for testing
         # Default to inactive until email verification
-        user.is_active = False
-        user.is_email_verified = False
-        
+        # But if 'is_active' is explicitly passed (e.g. su), use it.
+        if 'is_active' not in extra_fields:
+            user.is_active = False
+            
         user.save(using=self._db)
         return user
 
@@ -38,7 +35,8 @@ class UserManager(BaseUserManager):
         """Create and save a regular User with the given email and password."""
         extra_fields.setdefault('is_staff', False)
         extra_fields.setdefault('is_superuser', False)
-        extra_fields.setdefault('is_active', True)
+        # Default active to True for now if not specified, logic in view handles verification check
+        extra_fields.setdefault('is_active', True) 
         return self._create_user(email, password, **extra_fields)
 
     def create_superuser(self, email, password, **extra_fields):
@@ -65,11 +63,9 @@ class User(AbstractUser):
         COACH = 'COACH', _('Coach')
         PARENT = 'PARENT', _('Parent')
     
-    # Remove username field, use email instead
     username = None
     email = models.EmailField(_('email address'), unique=True)
     
-    # Custom fields
     role = models.CharField(
         _('role'),
         max_length=10,
@@ -77,29 +73,8 @@ class User(AbstractUser):
         default=Role.PARENT
     )
     
+    # Common fields
     phone = models.CharField(_('phone number'), max_length=15, blank=True)
-    address = models.TextField(_('address'), blank=True)
-    phone = models.CharField(_('phone number'), max_length=15, blank=True)
-    address = models.TextField(_('address'), blank=True)
-    # date_of_birth removed as per new requirements
-    profile_picture = models.ImageField(
-        _('profile picture'),
-        upload_to='profiles/',
-        null=True,
-        blank=True
-    )
-    
-    # Additional parent-specific fields
-    emergency_contact = models.CharField(_('emergency contact'), max_length=15, blank=True)
-    
-    # Additional coach-specific fields
-    qualification = models.TextField(_('qualification'), blank=True)
-    hourly_rate = models.DecimalField(
-        _('hourly rate'),
-        max_digits=8,
-        decimal_places=2,
-        default=0.00
-    )
     
     # Email Verification fields
     is_email_verified = models.BooleanField(_('email verified'), default=False)
@@ -129,7 +104,6 @@ class User(AbstractUser):
     # Status fields
     is_phone_verified = models.BooleanField(_('phone verified'), default=False)
     
-    # Timestamps
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
@@ -183,7 +157,7 @@ class User(AbstractUser):
             not self.is_verification_token_expired()):
             self.is_email_verified = True
             self.is_active = True
-            self.email_verification_token = ""  # Clear token after verification
+            self.email_verification_token = ""
             self.save()
             return True
         return False
@@ -201,3 +175,82 @@ class User(AbstractUser):
             return True
         expiry_time = self.reset_password_sent_at + timedelta(hours=1)
         return timezone.now() > expiry_time
+
+
+class ClerkProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='clerk_profile')
+    clerk_id = models.CharField(max_length=20, unique=True, blank=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.clerk_id:
+            last = ClerkProfile.objects.all().order_by('id').last()
+            if not last:
+                self.clerk_id = 'CLK001'
+            else:
+                try:
+                    # Extract number from CLK001 -> 001
+                    last_id = last.clerk_id
+                    number = int(last_id.replace('CLK', ''))
+                    new_number = number + 1
+                    self.clerk_id = f'CLK{new_number:03d}'
+                except ValueError:
+                    self.clerk_id = f'CLK{get_random_string(3)}'
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Clerk: {self.clerk_id} - {self.user.email}"
+
+
+class CoachProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='coach_profile')
+    coach_id = models.CharField(max_length=20, unique=True, blank=True)
+    specialization = models.CharField(max_length=100, blank=True)
+    hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    hire_date = models.DateField(null=True, blank=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.coach_id:
+            last = CoachProfile.objects.all().order_by('id').last()
+            if not last:
+                self.coach_id = 'COA001'
+            else:
+                try:
+                    last_id = last.coach_id
+                    number = int(last_id.replace('COA', ''))
+                    new_number = number + 1
+                    self.coach_id = f'COA{new_number:03d}'
+                except ValueError:
+                    self.coach_id = f'COA{get_random_string(3)}'
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Coach: {self.coach_id} - {self.user.email}"
+
+
+class ParentProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='parent_profile')
+    parent_id = models.CharField(max_length=20, unique=True, blank=True)
+    address = models.TextField(blank=True)
+    emergency_contact = models.CharField(max_length=15, blank=True)
+    relationship = models.CharField(max_length=50, blank=True, help_text="Relationship with student")
+    created_date = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.parent_id:
+            last = ParentProfile.objects.all().order_by('id').last()
+            if not last:
+                self.parent_id = 'PAR001'
+            else:
+                try:
+                    last_id = last.parent_id
+                    number = int(last_id.replace('PAR', ''))
+                    new_number = number + 1
+                    self.parent_id = f'PAR{new_number:03d}'
+                except ValueError:
+                    self.parent_id = f'PAR{get_random_string(3)}'
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Parent: {self.parent_id} - {self.user.email}"

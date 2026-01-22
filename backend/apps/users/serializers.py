@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from .models import User
+from django.db import transaction
+from .models import User, ClerkProfile, CoachProfile, ParentProfile
 
 class BaseRegisterSerializer(serializers.ModelSerializer):
     """Base serializer for user registration."""
@@ -38,9 +39,7 @@ class BaseRegisterSerializer(serializers.ModelSerializer):
                 "password": "Password fields didn't match."
             })
         
-        # Use Django's password validation
         try:
-            # Create a temporary user object for validation
             user = User(
                 email=data.get('email', ''),
                 first_name=data.get('first_name', ''),
@@ -56,57 +55,51 @@ class BaseRegisterSerializer(serializers.ModelSerializer):
                 "email": "A user with this email already exists."
             })
         return data
-    
-    def create(self, validated_data):
-        """Base create method - to be overridden by child classes."""
-        validated_data.pop('confirm_password')
-        password = validated_data.pop('password')
-
-        # Ensure user is created using the manager so password is hashed
-        return User.objects.create_user(
-            email=validated_data['email'],
-            password=password,
-            role=validated_data.get('role', User.Role.PARENT),
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            phone=validated_data.get('phone', ''),
-            is_active=True,
-            is_email_verified=True
-        )
 
 class ParentRegisterSerializer(BaseRegisterSerializer):
     """Serializer for parent registration."""
     
+    address = serializers.CharField(required=False, allow_blank=True)
+    emergency_contact = serializers.CharField(required=False, allow_blank=True)
+    relationship = serializers.CharField(required=False, allow_blank=True)
+
     class Meta(BaseRegisterSerializer.Meta):
         fields = BaseRegisterSerializer.Meta.fields + [
-            'address', 'emergency_contact'
+            'address', 'emergency_contact', 'relationship'
         ]
     
     def validate(self, data):
         data = super().validate(data)
-        if not data.get('role'):
-            data['role'] = User.Role.PARENT
-        # Remove coach-specific fields
-        data.pop('hourly_rate', None)
-        data.pop('qualification', None)
-        # date_of_birth removed
+        data['role'] = User.Role.PARENT
         return data
     
     def create(self, validated_data):
         validated_data.pop('confirm_password')
         password = validated_data.pop('password')
-        return User.objects.create_user(
-            email=validated_data['email'],
-            password=password,
-            role=User.Role.PARENT,
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            phone=validated_data.get('phone', ''),
-            address=validated_data.get('address', ''),
-            emergency_contact=validated_data.get('emergency_contact', ''),
-            is_active=True,
-            is_email_verified=True
-        )
+        
+        # Profile fields
+        address = validated_data.pop('address', '')
+        emergency_contact = validated_data.pop('emergency_contact', '')
+        relationship = validated_data.pop('relationship', '')
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=validated_data['email'],
+                password=password,
+                role=User.Role.PARENT,
+                first_name=validated_data.get('first_name', ''),
+                last_name=validated_data.get('last_name', ''),
+                phone=validated_data.get('phone', ''),
+                is_active=True,
+                is_email_verified=False
+            )
+            ParentProfile.objects.create(
+                user=user,
+                address=address,
+                emergency_contact=emergency_contact,
+                relationship=relationship
+            )
+        return user
 
 class ClerkRegisterSerializer(BaseRegisterSerializer):
     """Serializer for clerk registration."""
@@ -117,27 +110,25 @@ class ClerkRegisterSerializer(BaseRegisterSerializer):
     def validate(self, data):
         data = super().validate(data)
         data['role'] = User.Role.CLERK
-        # Remove coach-specific fields
-        data.pop('hourly_rate', None)
-        data.pop('qualification', None)
-        # date_of_birth removed
-        data.pop('address', None)
-        data.pop('emergency_contact', None)
         return data
     
     def create(self, validated_data):
         validated_data.pop('confirm_password')
         password = validated_data.pop('password')
-        return User.objects.create_user(
-            email=validated_data['email'],
-            password=password,
-            role=User.Role.CLERK,
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            phone=validated_data.get('phone', ''),
-            is_active=True,
-            is_email_verified=True
-        )
+        
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=validated_data['email'],
+                password=password,
+                role=User.Role.CLERK,
+                first_name=validated_data.get('first_name', ''),
+                last_name=validated_data.get('last_name', ''),
+                phone=validated_data.get('phone', ''),
+                is_active=True,
+                is_email_verified=False
+            )
+            ClerkProfile.objects.create(user=user)
+        return user
 
 class CoachRegisterSerializer(BaseRegisterSerializer):
     """Serializer for coach registration."""
@@ -149,19 +140,19 @@ class CoachRegisterSerializer(BaseRegisterSerializer):
         min_value=0,
         allow_null=True
     )
-    qualification = serializers.CharField(required=True)
-    # date_of_birth removed
+    specialization = serializers.CharField(required=True)
+    hire_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta(BaseRegisterSerializer.Meta):
         fields = BaseRegisterSerializer.Meta.fields + [
-            'qualification', 'hourly_rate'
+            'specialization', 'hourly_rate', 'hire_date'
         ]
 
     def validate(self, data):
         data = super().validate(data)
         data['role'] = User.Role.COACH
-        if not data.get('qualification'):
-            raise serializers.ValidationError({"qualification": "Qualification is required for coaches."})
+        if not data.get('specialization'):
+            raise serializers.ValidationError({"specialization": "Specialization is required for coaches."})
         if data.get('hourly_rate') is None or data.get('hourly_rate') <= 0:
             raise serializers.ValidationError({"hourly_rate": "Hourly rate must be greater than 0."})
         return data
@@ -169,19 +160,30 @@ class CoachRegisterSerializer(BaseRegisterSerializer):
     def create(self, validated_data):
         validated_data.pop('confirm_password')
         password = validated_data.pop('password')
-        return User.objects.create_user(
-            email=validated_data['email'],
-            password=password,
-            role=User.Role.COACH,
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            phone=validated_data.get('phone', ''),
-            qualification=validated_data.get('qualification', ''),
-            hourly_rate=validated_data.get('hourly_rate'),
-            # date_of_birth removed
-            is_active=True,
-            is_email_verified=True
-        )
+
+        # Profile fields
+        specialization = validated_data.pop('specialization', '')
+        hourly_rate = validated_data.pop('hourly_rate', 0.00)
+        hire_date = validated_data.pop('hire_date', None)
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=validated_data['email'],
+                password=password,
+                role=User.Role.COACH,
+                first_name=validated_data.get('first_name', ''),
+                last_name=validated_data.get('last_name', ''),
+                phone=validated_data.get('phone', ''),
+                is_active=True,
+                is_email_verified=False
+            )
+            CoachProfile.objects.create(
+                user=user,
+                specialization=specialization,
+                hourly_rate=hourly_rate,
+                hire_date=hire_date
+            )
+        return user
 
 class AdminRegisterSerializer(BaseRegisterSerializer):
     """Serializer for admin registration."""
@@ -192,11 +194,6 @@ class AdminRegisterSerializer(BaseRegisterSerializer):
     def validate(self, data):
         data = super().validate(data)
         data['role'] = User.Role.ADMIN
-        data.pop('hourly_rate', None)
-        data.pop('qualification', None)
-        # date_of_birth removed
-        data.pop('address', None)
-        data.pop('emergency_contact', None)
         return data
     
     def create(self, validated_data):
@@ -215,7 +212,7 @@ class AdminRegisterSerializer(BaseRegisterSerializer):
             is_superuser=True
         )
 
-# --- Other serializers remain unchanged ---
+# --- Other serializers ---
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -229,12 +226,13 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 class UserSerializer(serializers.ModelSerializer):
+    # Include profile specific details?
+    # For now keeping it simple as per original
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'role',
-            'phone', 'address', 'profile_picture',
-            'qualification', 'hourly_rate', 'emergency_contact',
+            'phone', 
             'is_email_verified', 'is_phone_verified',
             'created_at', 'updated_at'
         ]
@@ -243,8 +241,10 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'phone', 'address',
-                  'profile_picture', 'emergency_contact']
+        fields = ['first_name', 'last_name', 'phone']
+    
+    # Needs update to handle profile fields if we want to show/update them
+    # For registration task, this might not be critical, but good to note.
 
 class EmailVerificationSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)

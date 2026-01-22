@@ -3,18 +3,26 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Register = () => {
+  // Start with no role selected to show the Selection Screen first
   const [role, setRole] = useState('');
+
+  // Base State
   const [formData, setFormData] = useState({
     email: '',
-    first_name: '',
-    last_name: '',
-    phone: '',
-    address: '',
     password: '',
     confirm_password: '',
-    qualification: '',
-    hourly_rate: '',
+    phone: '',
+    // Common for all
+    first_name: '',
+    last_name: '',
+    // Parent Specific
+    address: '',
     emergency_contact: '',
+    relationship: '',
+    // Coach Specific
+    specialization: '',
+    hourly_rate: '',
+    hire_date: '',
   });
 
   const [passwordCriteria, setPasswordCriteria] = useState({
@@ -26,9 +34,9 @@ const Register = () => {
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(''); // 'creating', 'created', ''
+  const [submitStatus, setSubmitStatus] = useState('');
 
-  const { register, error, setError } = useAuth();
+  const { register, error: authError, setError: setAuthError } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,13 +47,16 @@ const Register = () => {
       lower: /[a-z]/.test(pwd),
       special: /[!@#$%^&*(),.?":{}|<>]/.test(pwd)
     });
-  }, [formData.password]);
+
+    if (errors.confirm_password && formData.confirm_password) {
+      if (pwd === formData.confirm_password) {
+        setErrors(prev => ({ ...prev, confirm_password: '' }));
+      }
+    }
+  }, [formData.password, formData.confirm_password, errors.confirm_password]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if ((name === 'first_name' || name === 'last_name') && value.length > 75) {
-      return;
-    }
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -58,21 +69,20 @@ const Register = () => {
     if (!formData.first_name) newErrors.first_name = 'First name is required';
     if (!formData.last_name) newErrors.last_name = 'Last name is required';
 
+    if (role === 'COACH') {
+      if (!formData.specialization) newErrors.specialization = 'Specialization is required';
+      if (!formData.hourly_rate) newErrors.hourly_rate = 'Hourly rate is required';
+    }
+
     if (!passwordCriteria.length || !passwordCriteria.upper ||
       !passwordCriteria.lower || !passwordCriteria.special) {
       newErrors.password = 'Please meet all password requirements.';
     }
 
-    if (!formData.confirm_password) newErrors.confirm_password = 'Please confirm password';
-    if (formData.password !== formData.confirm_password) {
+    if (!formData.confirm_password) {
+      newErrors.confirm_password = 'Please confirm password';
+    } else if (formData.password !== formData.confirm_password) {
       newErrors.confirm_password = 'Passwords do not match';
-    }
-
-    if (role === 'COACH') {
-      if (!formData.qualification) newErrors.qualification = 'Qualification is required';
-      if (!formData.hourly_rate || parseFloat(formData.hourly_rate) <= 0) {
-        newErrors.hourly_rate = 'Valid hourly rate is required';
-      }
     }
 
     setErrors(newErrors);
@@ -81,48 +91,52 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setAuthError(null);
 
     if (!validateForm()) return;
 
     setIsSubmitting(true);
     setSubmitStatus('creating');
 
-    const userData = { ...formData, role: role };
+    const payload = {
+      email: formData.email,
+      password: formData.password,
+      confirm_password: formData.confirm_password,
+      phone: formData.phone,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      role: role
+    };
 
-    if (role === "COACH") {
-      userData.hourly_rate = Number(formData.hourly_rate);
-    } else {
-      delete userData.hourly_rate;
-      delete userData.qualification;
-    }
-    if (role !== "PARENT") {
-      delete userData.emergency_contact;
+    if (role === 'PARENT') {
+      payload.address = formData.address;
+      payload.emergency_contact = formData.emergency_contact;
+      payload.relationship = formData.relationship;
+    } else if (role === 'COACH') {
+      payload.specialization = formData.specialization;
+      payload.hourly_rate = formData.hourly_rate;
+      payload.hire_date = formData.hire_date || null;
     }
 
     try {
-      const result = await register(userData);
-
+      const result = await register(payload);
       if (result.success) {
         setSubmitStatus('created');
-        // Brief pause to show success message before redirect
         setTimeout(() => {
-          navigate('/verify-email-sent', {
-            state: { email: userData.email }
-          });
-        }, 1500);
+          navigate('/verify-email-sent', { state: { email: formData.email } });
+        }, 2000);
       } else {
         setSubmitStatus('');
       }
     } catch (e) {
-      console.error("Registration submit error:", e);
+      console.error(e);
       setSubmitStatus('');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Status Overlay
+  // Success Screen
   if (submitStatus === 'creating' || submitStatus === 'created') {
     return (
       <div className="d-flex flex-column align-items-center justify-content-center vh-100 bg-light">
@@ -130,15 +144,13 @@ const Register = () => {
           {submitStatus === 'creating' ? (
             <>
               <div className="spinner-border text-primary mb-3" role="status"></div>
-              <h4 className="mb-2">Creating your account...</h4>
-              <p className="text-muted">Please wait while we set things up.</p>
+              <h4 className="mb-2">Creating Account...</h4>
             </>
           ) : (
             <>
               <i className="bi bi-check-circle-fill text-success display-1 mb-3"></i>
               <h4 className="mb-2">Account Created!</h4>
-              <p className="text-success">Check your email to verify.</p>
-              <p className="small text-muted">Redirecting...</p>
+              <p className="text-muted">Please check your email.</p>
             </>
           )}
         </div>
@@ -146,61 +158,47 @@ const Register = () => {
     );
   }
 
-  const renderPasswordChecklist = () => (
-    <div className="card bg-light border-0 p-3 mb-3">
-      <small className="fw-bold mb-2 d-block text-secondary">Password Requirements:</small>
-      <div className="d-flex flex-wrap gap-3">
-        <span className={passwordCriteria.length ? "text-success" : "text-muted"}>
-          {passwordCriteria.length ? "✓" : "○"} At least 8 chars
-        </span>
-        <span className={passwordCriteria.upper ? "text-success" : "text-muted"}>
-          {passwordCriteria.upper ? "✓" : "○"} 1 Uppercase
-        </span>
-        <span className={passwordCriteria.lower ? "text-success" : "text-muted"}>
-          {passwordCriteria.lower ? "✓" : "○"} 1 Lowercase
-        </span>
-        <span className={passwordCriteria.special ? "text-success" : "text-muted"}>
-          {passwordCriteria.special ? "✓" : "○"} 1 Special char
-        </span>
-      </div>
-    </div>
-  );
-
-  // Role Selection View
+  // --- STEP 1: Role Selection Screen ---
   if (!role) {
     return (
       <div className="auth-container">
-        <div className="auth-card" style={{ maxWidth: '800px' }}>
+        <div className="auth-card" style={{ maxWidth: '900px' }}>
           <div className="text-center mb-5">
-            <h2 className="text-primary fw-bold">Join AAA Grand Masters</h2>
+            <h2 className="text-primary fw-bold">Join Chess Academy</h2>
             <p className="lead text-muted">Select your account type to get started</p>
           </div>
           <div className="row g-4 justify-content-center">
-            <div className="col-md-3">
-              <div className="card h-100 text-center p-4 border-2 hover-shadow"
-                style={{ cursor: 'pointer', borderColor: '#228B22' }}
-                onClick={() => setRole('PARENT')}>
+            <div className="col-md-4">
+              <div className="card h-100 text-center p-4 border-2 hover-shadow cursor-pointer transition-all"
+                style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                onClick={() => setRole('PARENT')}
+                onMouseEnter={(e) => e.currentTarget.classList.add('shadow-lg')}
+                onMouseLeave={(e) => e.currentTarget.classList.remove('shadow-lg')}>
                 <div className="display-4 mb-3">👨‍👩‍👧‍👦</div>
-                <h4 className="text-primary">Parent</h4>
-                <p className="text-muted small">For enrolling students.</p>
+                <h4 className="text-primary fw-bold">Parent</h4>
+                <p className="text-muted small">For enrolling students & managing payments.</p>
               </div>
             </div>
-            <div className="col-md-3">
-              <div className="card h-100 text-center p-4 border-2 hover-shadow"
-                style={{ cursor: 'pointer', borderColor: '#228B22' }}
-                onClick={() => setRole('COACH')}>
+            <div className="col-md-4">
+              <div className="card h-100 text-center p-4 border-2 hover-shadow cursor-pointer transition-all"
+                style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                onClick={() => setRole('COACH')}
+                onMouseEnter={(e) => e.currentTarget.classList.add('shadow-lg')}
+                onMouseLeave={(e) => e.currentTarget.classList.remove('shadow-lg')}>
                 <div className="display-4 mb-3">♟️</div>
-                <h4 className="text-primary">Coach</h4>
-                <p className="text-muted small">For teaching masters.</p>
+                <h4 className="text-primary fw-bold">Coach</h4>
+                <p className="text-muted small">For teaching masters & managing classes.</p>
               </div>
             </div>
-            <div className="col-md-3">
-              <div className="card h-100 text-center p-4 border-2 hover-shadow"
-                style={{ cursor: 'pointer', borderColor: '#228B22' }}
-                onClick={() => setRole('CLERK')}>
+            <div className="col-md-4">
+              <div className="card h-100 text-center p-4 border-2 hover-shadow cursor-pointer transition-all"
+                style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                onClick={() => setRole('CLERK')}
+                onMouseEnter={(e) => e.currentTarget.classList.add('shadow-lg')}
+                onMouseLeave={(e) => e.currentTarget.classList.remove('shadow-lg')}>
                 <div className="display-4 mb-3">📝</div>
-                <h4 className="text-primary">Clerk</h4>
-                <p className="text-muted small">For admin staff.</p>
+                <h4 className="text-primary fw-bold">Clerk</h4>
+                <p className="text-muted small">For administrative staff & management.</p>
               </div>
             </div>
           </div>
@@ -212,88 +210,161 @@ const Register = () => {
     );
   }
 
+  // --- STEP 2: Registration Form ---
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <div className="text-center mb-4">
-          <button className="btn btn-link text-decoration-none text-muted float-start" onClick={() => setRole('')}>
-            ← Back
+        <div className="mb-4">
+          <button className="btn btn-link text-decoration-none text-muted p-0 mb-2" onClick={() => setRole('')}>
+            ← Back to Role Selection
           </button>
-          <h2 className="text-primary">Create {role.charAt(0) + role.slice(1).toLowerCase()} Account</h2>
+          <h2 className="text-primary fw-bold text-center">Create Account</h2>
         </div>
 
-        {error && (
-          <div className="alert alert-danger alert-dismissible fade show" role="alert">
-            {typeof error === 'object' ? JSON.stringify(error) : error}
-            <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+        {authError && (
+          <div className="alert alert-danger">
+            {typeof authError === 'object' ? JSON.stringify(authError) : authError}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
+
+          {/* First Name & Last Name (Visible for ALL roles, at the top) */}
           <div className="row">
             <div className="col-md-6 mb-3">
               <label className="form-label">First Name</label>
-              <input type="text" className="form-control" name="first_name" value={formData.first_name} onChange={handleChange} required maxLength={75} />
+              <input
+                type="text"
+                className={`form-control ${errors.first_name ? 'is-invalid' : ''}`}
+                name="first_name"
+                value={formData.first_name}
+                onChange={handleChange}
+              />
+              {errors.first_name && <div className="invalid-feedback">{errors.first_name}</div>}
             </div>
             <div className="col-md-6 mb-3">
               <label className="form-label">Last Name</label>
-              <input type="text" className="form-control" name="last_name" value={formData.last_name} onChange={handleChange} required maxLength={75} />
+              <input
+                type="text"
+                className={`form-control ${errors.last_name ? 'is-invalid' : ''}`}
+                name="last_name"
+                value={formData.last_name}
+                onChange={handleChange}
+              />
+              {errors.last_name && <div className="invalid-feedback">{errors.last_name}</div>}
             </div>
           </div>
 
+          {/* Email */}
           <div className="mb-3">
             <label className="form-label">Email Address</label>
-            <input type="email" className="form-control" name="email" value={formData.email} onChange={handleChange} required />
+            <input
+              type="email"
+              className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+            />
+            {errors.email && <div className="invalid-feedback">{errors.email}</div>}
           </div>
 
+          {/* Phone - Common Field */}
           <div className="mb-3">
             <label className="form-label">Phone Number</label>
-            <input type="tel" className="form-control" name="phone" value={formData.phone} onChange={handleChange} />
+            <input
+              type="tel"
+              className="form-control"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+            />
           </div>
 
-          <div className="mb-3">
-            <label className="form-label">Address</label>
-            <textarea className="form-control" name="address" value={formData.address} onChange={handleChange} rows="2" />
-          </div>
-
-          {role === 'COACH' && (
+          {/* Parent Specific Fields */}
+          {role === 'PARENT' && (
             <>
               <div className="mb-3">
-                <label className="form-label">Qualification *</label>
-                <textarea className="form-control" name="qualification" value={formData.qualification} onChange={handleChange} required />
+                <label className="form-label">Address</label>
+                <textarea className="form-control" name="address" rows="2" value={formData.address} onChange={handleChange}></textarea>
               </div>
-              <div className="mb-3">
-                <label className="form-label">Hourly Rate (LKR) *</label>
-                <input type="number" className="form-control" name="hourly_rate" value={formData.hourly_rate} onChange={handleChange} min="0" step="0.01" required />
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <label className="form-label">Emergency Contact</label>
+                  <input type="text" className="form-control" name="emergency_contact" value={formData.emergency_contact} onChange={handleChange} />
+                </div>
+                <div className="col-md-6 mb-3">
+                  <label className="form-label">Relationship with Student</label>
+                  <input type="text" className="form-control" name="relationship" value={formData.relationship} onChange={handleChange} placeholder="e.g. Father, Mother" />
+                </div>
               </div>
             </>
           )}
 
-          {role === 'PARENT' && (
-            <div className="mb-3">
-              <label className="form-label">Emergency Contact</label>
-              <input type="tel" className="form-control" name="emergency_contact" value={formData.emergency_contact} onChange={handleChange} />
-            </div>
+          {/* Coach Specific Fields */}
+          {role === 'COACH' && (
+            <>
+              <div className="mb-3">
+                <label className="form-label">Specialization</label>
+                <input type="text" className={`form-control ${errors.specialization ? 'is-invalid' : ''}`} name="specialization" value={formData.specialization} onChange={handleChange} placeholder="e.g. Grandmaster, Opening Theory" />
+                {errors.specialization && <div className="invalid-feedback">{errors.specialization}</div>}
+              </div>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <label className="form-label">Hourly Rate</label>
+                  <input type="number" step="0.01" className={`form-control ${errors.hourly_rate ? 'is-invalid' : ''}`} name="hourly_rate" value={formData.hourly_rate} onChange={handleChange} />
+                  {errors.hourly_rate && <div className="invalid-feedback">{errors.hourly_rate}</div>}
+                </div>
+                <div className="col-md-6 mb-3">
+                  <label className="form-label">Hire Date</label>
+                  <input type="date" className="form-control" name="hire_date" value={formData.hire_date} onChange={handleChange} />
+                </div>
+              </div>
+            </>
           )}
 
+          {/* Password Fields */}
           <div className="mb-3">
             <label className="form-label">Password</label>
-            <input type="password" className="form-control" name="password" value={formData.password} onChange={handleChange} required />
+            <input
+              type="password"
+              className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+            />
+            {errors.password && <div className="invalid-feedback">{errors.password}</div>}
+
+            {/* Validations Checklist */}
+            {formData.password && (
+              <div className="mt-2 text-muted small">
+                <span className={`me-3 ${passwordCriteria.length ? 'text-success' : ''}`}>{passwordCriteria.length ? '✓' : '○'} 8+ Chars</span>
+                <span className={`me-3 ${passwordCriteria.upper ? 'text-success' : ''}`}>{passwordCriteria.upper ? '✓' : '○'} Uppercase</span>
+                <span className={`me-3 ${passwordCriteria.lower ? 'text-success' : ''}`}>{passwordCriteria.lower ? '✓' : '○'} Lowercase</span>
+                <span className={`${passwordCriteria.special ? 'text-success' : ''}`}>{passwordCriteria.special ? '✓' : '○'} Special</span>
+              </div>
+            )}
           </div>
 
-          {formData.password && renderPasswordChecklist()}
-
-          <div className="mb-3">
+          <div className="mb-4">
             <label className="form-label">Confirm Password</label>
-            <input type="password" className="form-control" name="confirm_password" value={formData.confirm_password} onChange={handleChange} required />
+            <input
+              type="password"
+              className={`form-control ${errors.confirm_password ? 'is-invalid' : ''}`}
+              name="confirm_password"
+              value={formData.confirm_password}
+              onChange={handleChange}
+            />
+            <div className="invalid-feedback">
+              {errors.confirm_password}
+            </div>
           </div>
 
-          <button type="submit" className="btn btn-primary w-100 mb-3" disabled={isSubmitting}>
-            Register
+          <button type="submit" className="btn btn-primary w-100" disabled={isSubmitting}>
+            {isSubmitting ? 'Registering...' : 'Register'}
           </button>
 
-          <div className="text-center">
-            <p className="mb-0">Already have an account? <Link to="/login" className="text-decoration-none">Login here</Link></p>
+          <div className="text-center mt-3">
+            <small>Already have an account? <Link to="/login">Login</Link></small>
           </div>
         </form>
       </div>

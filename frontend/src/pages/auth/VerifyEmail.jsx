@@ -8,6 +8,7 @@ const VerifyEmail = () => {
     const [status, setStatus] = useState('verifying'); // verifying, success, error
     const [message, setMessage] = useState('Verifying your email...');
 
+    // Prevent double invocation in React Strict Mode
     const verifyCalled = useRef(false);
 
     useEffect(() => {
@@ -16,18 +17,31 @@ const VerifyEmail = () => {
             verifyCalled.current = true;
 
             try {
+                // Sending request to backend
                 const response = await axiosInstance.get(`/auth/verify-email/${token}/`);
-                setStatus('success');
-                setMessage('Email verified! Please login');
 
-                // Auto-redirect after 5 seconds
-                setTimeout(() => {
-                    navigate('/login');
-                }, 5000);
+                // If we get here, axios status is likely 2xx
+                setStatus('success');
+                setMessage(response.data.message || 'Email verified successfully!');
+
+                // Auto redirect
+                setTimeout(() => navigate('/login'), 5000);
             } catch (error) {
-                // Only set error if we haven't already succeeded (though with strict mode return above, this shouldn't be race-conditioned easily)
+                console.error("Verification Error:", error);
+
                 setStatus('error');
-                setMessage(error.response?.data?.message || 'Verification failed. Link may be invalid or expired.');
+                if (error.response && error.response.data) {
+                    // Try to get message from backend JSON
+                    // If it returns HTML (e.g. 500 error page), avoid showing raw HTML
+                    const data = error.response.data;
+                    if (typeof data === 'string' && data.trim().startsWith('<')) {
+                        setMessage('Server encountered an error. Please try again later.');
+                    } else {
+                        setMessage(data.message || data.error || 'Verification failed.');
+                    }
+                } else {
+                    setMessage('Network error or server unreachable.');
+                }
             }
         };
 
@@ -35,7 +49,7 @@ const VerifyEmail = () => {
             verify();
         } else {
             setStatus('error');
-            setMessage('Invalid verification link.');
+            setMessage('Invalid link.');
         }
     }, [token, navigate]);
 
@@ -54,26 +68,18 @@ const VerifyEmail = () => {
                     {status === 'error' && 'Verification Failed'}
                 </h3>
 
-                {status === 'verifying' && <p className="text-muted">Please wait...</p>}
+                <p className={status === 'error' ? 'text-danger' : 'text-muted'}>
+                    {message}
+                </p>
 
                 {status === 'success' && (
-                    <>
-                        <p className="text-success lead">
-                            ✓ Email verified! Please login
-                        </p>
-                        <p className="small text-muted mt-3">
-                            Redirecting to login in 5 seconds...
-                        </p>
-                    </>
+                    <p className="small text-muted mt-3">Redirecting to login...</p>
                 )}
 
                 {status === 'error' && (
-                    <>
-                        <p className="text-danger mb-4">{message}</p>
-                        <button className="btn btn-primary" onClick={() => navigate('/login')}>
-                            Go to Login
-                        </button>
-                    </>
+                    <button className="btn btn-primary mt-3" onClick={() => navigate('/login')}>
+                        Back to Login
+                    </button>
                 )}
             </div>
         </div>
