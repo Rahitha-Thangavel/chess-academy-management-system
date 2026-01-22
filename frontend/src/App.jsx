@@ -17,6 +17,11 @@ import AdminDashboard from './pages/admin/Dashboard';
 import CreateAdmin from './pages/admin/CreateAdmin';
 import ClerkDashboard from './pages/clerk/Dashboard';
 import CoachDashboard from './pages/coach/Dashboard';
+import CoachLayout from './components/coach/CoachLayout';
+import CoachClasses from './pages/coach/MyClasses';
+import CoachAttendance from './pages/coach/Attendance';
+import CoachSchedule from './pages/coach/Schedule';
+import CoachSalary from './pages/coach/Salary';
 import ParentDashboard from './pages/parent/Dashboard';
 import ParentLayout from './components/parent/ParentLayout';
 import MyChildren from './pages/parent/MyChildren';
@@ -82,7 +87,49 @@ function App() {
             path="/coach/dashboard"
             element={
               <ProtectedRoute allowedRoles={['COACH']}>
-                <CoachDashboard />
+                <CoachLayout>
+                  <CoachDashboard />
+                </CoachLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coach/classes"
+            element={
+              <ProtectedRoute allowedRoles={['COACH']}>
+                <CoachLayout>
+                  <CoachClasses />
+                </CoachLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coach/attendance"
+            element={
+              <ProtectedRoute allowedRoles={['COACH']}>
+                <CoachLayout>
+                  <CoachAttendance />
+                </CoachLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coach/schedule"
+            element={
+              <ProtectedRoute allowedRoles={['COACH']}>
+                <CoachLayout>
+                  <CoachSchedule />
+                </CoachLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coach/salary"
+            element={
+              <ProtectedRoute allowedRoles={['COACH']}>
+                <CoachLayout>
+                  <CoachSalary />
+                </CoachLayout>
               </ProtectedRoute>
             }
           />
