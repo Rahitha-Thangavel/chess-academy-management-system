@@ -40,6 +40,10 @@ const Register = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    setAuthError(null); // Clear global auth errors when component mounts
+  }, []);
+
+  useEffect(() => {
     const pwd = formData.password;
     setPasswordCriteria({
       length: pwd.length >= 8,

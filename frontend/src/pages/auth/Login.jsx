@@ -16,6 +16,7 @@ const Login = () => {
   const [resendUrl, setResendUrl] = useState(null);
 
   React.useEffect(() => {
+    setError(null); // Clear any existing errors on mount
     const params = new URLSearchParams(window.location.search);
     if (params.get('registered') === 'true') {
       setSuccessMessage('Registration successful! Please check your email to verify your account before logging in.');

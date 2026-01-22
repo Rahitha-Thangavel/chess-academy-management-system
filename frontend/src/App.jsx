@@ -18,6 +18,12 @@ import CreateAdmin from './pages/admin/CreateAdmin';
 import ClerkDashboard from './pages/clerk/Dashboard';
 import CoachDashboard from './pages/coach/Dashboard';
 import ParentDashboard from './pages/parent/Dashboard';
+import ParentLayout from './components/parent/ParentLayout';
+import MyChildren from './pages/parent/MyChildren';
+import Attendance from './pages/parent/Attendance';
+import Payments from './pages/parent/Payments';
+import Tournaments from './pages/parent/Tournaments';
+import RescheduleRequests from './pages/parent/RescheduleRequests';
 
 // Error Pages
 import NotFound from './pages/errors/NotFound';
@@ -86,7 +92,59 @@ function App() {
             path="/parent/dashboard"
             element={
               <ProtectedRoute allowedRoles={['PARENT']}>
-                <ParentDashboard />
+                <ParentLayout>
+                  <ParentDashboard />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/children"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <MyChildren />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/attendance"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <Attendance />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/payments"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <Payments />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/tournaments"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <Tournaments />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/reschedule"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <RescheduleRequests />
+                </ParentLayout>
               </ProtectedRoute>
             }
           />
