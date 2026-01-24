@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Tournaments = () => {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('upcoming');
 
     const upcoming = [
@@ -128,11 +130,12 @@ const Tournaments = () => {
                                     </div>
 
                                     <div className="d-flex gap-3">
-                                        <button className="btn text-white px-4 py-2 fw-bold rounded-2" style={{ backgroundColor: '#6c9343' }}>
-                                            Register
-                                        </button>
-                                        <button className="btn btn-light px-4 py-2 fw-bold rounded-2 text-secondary">
-                                            View Details
+                                        <button
+                                            className="btn text-white px-4 py-2 rounded-2 fw-bold"
+                                            style={{ backgroundColor: '#6c9343' }}
+                                            onClick={() => navigate(`/parent/tournaments/register/${t.id}`)}
+                                        >
+                                            Register Now
                                         </button>
                                     </div>
                                 </div>

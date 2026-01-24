@@ -1,6 +1,9 @@
+
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const RescheduleRequests = () => {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('All');
 
     // Mock Data
@@ -118,9 +121,14 @@ const RescheduleRequests = () => {
 
             {/* Request History */}
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <h5 className="fw-bold m-0">Request History</h5>
-                <button className="btn text-white px-4 py-2 fw-bold rounded-2" style={{ backgroundColor: '#6c9343' }}>
-                    Request New Reschedule <i className="bi bi-chevron-right ms-1"></i>
+                <h3 className="fw-bold m-0" style={{ color: '#4a3f35' }}>Reschedule Requests</h3>
+                <button
+                    className="btn fw-bold text-white px-4 py-2 shadow-sm"
+                    style={{ backgroundColor: '#6c9343' }}
+                    onClick={() => navigate('/parent/reschedule/new')}
+                >
+                    <i className="bi bi-plus-lg me-2"></i>
+                    New Request
                 </button>
             </div>
 
@@ -130,7 +138,7 @@ const RescheduleRequests = () => {
                     {['All', 'Pending', 'Approved', 'Rejected'].map(tab => (
                         <button
                             key={tab}
-                            className={`btn border-0 py-2 px-3 fw-bold position-relative ${activeTab === tab ? 'text-success' : 'text-secondary'}`}
+                            className={`btn border - 0 py - 2 px - 3 fw - bold position - relative ${activeTab === tab ? 'text-success' : 'text-secondary'} `}
                             onClick={() => setActiveTab(tab)}
                         >
                             {tab} {tab !== 'All' && requests.filter(r => r.status === tab).length > 0 && `(${requests.filter(r => r.status === tab).length})`}
@@ -150,8 +158,8 @@ const RescheduleRequests = () => {
                         <div key={req.id} className="card border-0 shadow-sm p-4 rounded-3">
                             <div className="d-flex justify-content-between align-items-start mb-3">
                                 <h6 className="fw-bold m-0">For: {req.student}</h6>
-                                <div className={`text-${badge.color} fw-bold small d-flex align-items-center gap-2`}>
-                                    <i className={`bi ${badge.icon}`}></i> {badge.text}
+                                <div className={`text - ${badge.color} fw - bold small d - flex align - items - center gap - 2`}>
+                                    <i className={`bi ${badge.icon} `}></i> {badge.text}
                                 </div>
                             </div>
 

@@ -1,10 +1,24 @@
-import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminLayout = ({ children }) => {
     const { logout, user } = useAuth();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const profileMenuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+                setShowProfileMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     return (
         <div className="d-flex bg-light" style={{ minHeight: '100vh', width: '100%' }}>
@@ -148,15 +162,15 @@ const AdminLayout = ({ children }) => {
                     <h5 className="m-0 fw-bold text-secondary">Chess Academy Management System</h5>
 
                     <div className="d-flex align-items-center gap-4">
-                        <div className="position-relative">
+                        <Link to="/notifications" className="text-dark bg-transparent border-0 position-relative">
                             <i className="bi bi-bell fs-5 text-secondary"></i>
                             <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style={{ fontSize: '0.6rem' }}>
                                 8
                             </span>
-                        </div>
+                        </Link>
                         <i className="bi bi-gear fs-5 text-secondary"></i>
 
-                        <div className="position-relative">
+                        <div className="position-relative" ref={profileMenuRef}>
                             <button
                                 className="btn d-flex align-items-center gap-2 text-dark border-0 bg-transparent"
                                 onClick={() => setShowProfileMenu(!showProfileMenu)}

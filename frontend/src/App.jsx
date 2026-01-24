@@ -42,7 +42,15 @@ import MyChildren from './pages/parent/MyChildren';
 import Attendance from './pages/parent/Attendance';
 import Payments from './pages/parent/Payments';
 import Tournaments from './pages/parent/Tournaments';
+
 import RescheduleRequests from './pages/parent/RescheduleRequests';
+import Notifications from './pages/common/Notifications';
+import AddChild from './pages/parent/AddChild';
+import RegistrationSuccess from './pages/parent/RegistrationSuccess';
+import PaymentCheckout from './pages/parent/PaymentCheckout';
+import PaymentReceipt from './pages/parent/PaymentReceipt';
+import TournamentRegistration from './pages/parent/TournamentRegistration';
+import NewRescheduleRequest from './pages/parent/NewRescheduleRequest';
 
 // Error Pages
 import NotFound from './pages/errors/NotFound';
@@ -275,6 +283,7 @@ function App() {
           />
 
           {/* Parent Routes */}
+          {/* Parent Routes */}
           <Route
             path="/parent/dashboard"
             element={
@@ -292,6 +301,24 @@ function App() {
                 <ParentLayout>
                   <MyChildren />
                 </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/add-child"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <AddChild />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/registration-success"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <RegistrationSuccess />
               </ProtectedRoute>
             }
           />
@@ -316,11 +343,41 @@ function App() {
             }
           />
           <Route
+            path="/parent/payment/checkout/:id"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <PaymentCheckout />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/payment/receipt/:id"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <PaymentReceipt />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/parent/tournaments"
             element={
               <ProtectedRoute allowedRoles={['PARENT']}>
                 <ParentLayout>
                   <Tournaments />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/tournaments/register/:id"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <TournamentRegistration />
                 </ParentLayout>
               </ProtectedRoute>
             }
@@ -332,6 +389,45 @@ function App() {
                 <ParentLayout>
                   <RescheduleRequests />
                 </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/reschedule/new"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <NewRescheduleRequest />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/notifications"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <Notifications />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Common Routes */}
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'CLERK', 'COACH', 'PARENT']}>
+                {/* Layout will be handled by the specific page or component if needed, 
+                      but typically notifications need to be wrapped in the user's role layout. 
+                      For simplicity, we might render it without layout or need a wrapper. 
+                      Let's assume for now it renders inside the role-specific layout which is tricky here. 
+                      Actually, better to having per-role routes or a wrapper that detects role.
+                      For this specific architecture, let's just make it a standalone page with a back button.
+                   */}
+                <div className="bg-light min-vh-100 p-4">
+                  <Notifications />
+                </div>
               </ProtectedRoute>
             }
           />

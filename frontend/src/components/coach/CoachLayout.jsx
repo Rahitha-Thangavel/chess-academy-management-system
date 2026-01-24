@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const CoachLayout = ({ children }) => {
-    const { user, logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const profileMenuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+                setShowProfileMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const handleLogout = () => {
         logout();
@@ -96,11 +110,14 @@ const CoachLayout = ({ children }) => {
                 <header className="border-bottom py-3 px-4 d-flex justify-content-between align-items-center sticky-top bg-white">
                     <h4 className="m-0 fw-bold text-success">Chess Academy</h4>
                     <div className="d-flex align-items-center gap-4">
-                        <button className="btn btn-link text-secondary position-relative p-0">
-                            <i className="bi bi-bell h5 m-0"></i>
-                        </button>
+                        <Link to="/notifications" className="text-dark bg-transparent border-0 position-relative">
+                            <i className="bi bi-bell fs-5 text-secondary"></i>
+                            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
+                                2
+                            </span>
+                        </Link>
 
-                        <div className="position-relative">
+                        <div className="position-relative" ref={profileMenuRef}>
                             <button
                                 className="btn d-flex align-items-center gap-2 text-dark border-0 bg-transparent"
                                 onClick={() => setShowProfileMenu(!showProfileMenu)}

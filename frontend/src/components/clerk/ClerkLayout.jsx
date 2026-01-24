@@ -1,12 +1,27 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ClerkLayout = ({ children }) => {
-    const { user, logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const profileMenuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+                setShowProfileMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const handleLogout = () => {
         logout();
@@ -30,7 +45,7 @@ const ClerkLayout = ({ children }) => {
                             <NavLink
                                 to="/clerk/dashboard"
                                 className={({ isActive }) =>
-                                    `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
+                                    `nav - link d - flex align - items - center gap - 3 px - 3 py - 2 rounded - 2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'} `
                                 }
                                 style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
                             >
@@ -42,7 +57,7 @@ const ClerkLayout = ({ children }) => {
                             <NavLink
                                 to="/clerk/students"
                                 className={({ isActive }) =>
-                                    `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
+                                    `nav - link d - flex align - items - center gap - 3 px - 3 py - 2 rounded - 2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'} `
                                 }
                                 style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
                             >
@@ -54,7 +69,7 @@ const ClerkLayout = ({ children }) => {
                             <NavLink
                                 to="/clerk/attendance"
                                 className={({ isActive }) =>
-                                    `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
+                                    `nav - link d - flex align - items - center gap - 3 px - 3 py - 2 rounded - 2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'} `
                                 }
                                 style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
                             >
@@ -66,7 +81,7 @@ const ClerkLayout = ({ children }) => {
                             <NavLink
                                 to="/clerk/payments"
                                 className={({ isActive }) =>
-                                    `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
+                                    `nav - link d - flex align - items - center gap - 3 px - 3 py - 2 rounded - 2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'} `
                                 }
                                 style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
                             >
@@ -78,7 +93,7 @@ const ClerkLayout = ({ children }) => {
                             <NavLink
                                 to="/clerk/tournaments"
                                 className={({ isActive }) =>
-                                    `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
+                                    `nav - link d - flex align - items - center gap - 3 px - 3 py - 2 rounded - 2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'} `
                                 }
                                 style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
                             >
@@ -94,27 +109,22 @@ const ClerkLayout = ({ children }) => {
             <div className="flex-grow-1 d-flex flex-column" style={{ marginLeft: '280px' }}>
                 {/* Header */}
                 <header className="border-bottom py-3 px-4 d-flex justify-content-between align-items-center sticky-top bg-white">
-                    <div className="d-flex flex-column">
-                        <h5 className="m-0 fw-bold text-dark">Welcome, Sivapalan M (Clerk)</h5>
-                    </div>
+                    <h5 className="m-0 fw-bold text-secondary">Chess Academy Management System</h5>
 
                     <div className="d-flex align-items-center gap-4">
-                        <div className="input-group" style={{ width: '300px' }}>
-                            <span className="input-group-text bg-light border-0"><i className="bi bi-search text-secondary"></i></span>
-                            <input type="text" className="form-control bg-light border-0" placeholder="Search students..." />
+                        <div className="input-group d-none d-md-flex" style={{ width: '300px' }}>
+                            <span className="input-group-text bg-light border-0"><i className="bi bi-search"></i></span>
+                            <input type="text" className="form-control bg-light border-0" placeholder="Search students, payments..." />
                         </div>
 
-                        <div className="position-relative">
-                            <button className="btn btn-link text-secondary p-0">
-                                <i className="bi bi-bell h5 m-0 position-relative">
-                                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
-                                        2
-                                    </span>
-                                </i>
-                            </button>
-                        </div>
+                        <Link to="/notifications" className="text-dark bg-transparent border-0 position-relative">
+                            <i className="bi bi-bell fs-5 text-secondary"></i>
+                            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
+                                5
+                            </span>
+                        </Link>
 
-                        <div className="position-relative">
+                        <div className="position-relative" ref={profileMenuRef}>
                             <button
                                 className="btn d-flex align-items-center gap-2 text-dark border-0 bg-transparent"
                                 onClick={() => setShowProfileMenu(!showProfileMenu)}

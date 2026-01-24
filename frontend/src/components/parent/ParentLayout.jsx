@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ParentLayout = ({ children }) => {
-    const { user, logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const profileMenuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+                setShowProfileMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const handleLogout = () => {
         logout();
@@ -107,11 +121,14 @@ const ParentLayout = ({ children }) => {
                 <header className="border-bottom py-3 px-4 d-flex justify-content-between align-items-center sticky-top" style={{ backgroundColor: '#6c9343', color: 'white' }}>
                     <h4 className="m-0 fw-bold"> </h4> {/* Placeholder to balance flex */}
                     <div className="d-flex align-items-center gap-4">
-                        <button className="btn btn-link text-white position-relative p-0">
-                            <i className="bi bi-bell h5 m-0"></i>
-                        </button>
+                        <Link to="/parent/notifications" className="text-white bg-transparent border-0 position-relative">
+                            <i className="bi bi-bell fs-5 text-white"></i>
+                            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
+                                3
+                            </span>
+                        </Link>
 
-                        <div className="position-relative">
+                        <div className="position-relative" ref={profileMenuRef}>
                             <button
                                 className="btn d-flex align-items-center gap-2 text-white border-0 bg-transparent"
                                 onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -120,8 +137,8 @@ const ParentLayout = ({ children }) => {
                                     style={{ width: '32px', height: '32px' }}>
                                     {user?.first_name?.charAt(0) || 'U'}
                                 </div>
-                                <span>{user?.first_name || 'User'}</span>
-                                <i className="bi bi-chevron-down small"></i>
+                                <span className="text-white">{user?.first_name || 'User'}</span>
+                                <i className="bi bi-chevron-down small text-white"></i>
                             </button>
 
                             {showProfileMenu && (

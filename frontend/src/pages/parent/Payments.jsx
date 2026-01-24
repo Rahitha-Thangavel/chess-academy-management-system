@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Payments = () => {
+    const navigate = useNavigate();
     // Mock Data
     const fees = [
         {
@@ -60,42 +62,50 @@ const Payments = () => {
 
             {/* Fee Cards */}
             <div className="row g-4 mb-5">
-                {fees.map((fee) => (
-                    <div key={fee.id} className="col-lg-4 col-md-6">
-                        <div className="card border-0 shadow-sm p-4 h-100" style={{ borderRadius: '12px' }}>
-                            <div className="d-flex justify-content-between align-items-center mb-4">
-                                <h5 className="fw-bold m-0">{fee.name}</h5>
-                                <span className="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-3 py-2">
-                                    <i className="bi bi-exclamation-triangle-fill me-1"></i> {fee.status}
-                                </span>
-                            </div>
+                {fees.map((fee) => {
+                    const badgeClass = fee.status === 'Pending' ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle';
+                    return (
+                        <div key={fee.id} className="col-lg-4 col-md-6">
+                            <div className="card border-0 shadow-sm p-4 h-100" style={{ borderRadius: '12px' }}>
+                                <div className="d-flex justify-content-between align-items-center mb-4">
+                                    <h5 className="fw-bold m-0">{fee.name}</h5>
+                                    <span className={`badge ${badgeClass} rounded-pill px-3 py-2`}>
+                                        {fee.status === 'Pending' ? <i className="bi bi-exclamation-triangle-fill me-1"></i> : <i className="bi bi-check-circle-fill me-1"></i>} {fee.status}
+                                    </span>
+                                </div>
 
-                            <div className="d-flex justify-content-between mb-2">
-                                <span className="text-secondary small fw-bold">Monthly Fee:</span>
-                                <span className="fw-bold">{fee.monthlyFee}</span>
-                            </div>
-                            <div className="d-flex justify-content-between mb-3 text-success">
-                                <span className="small fw-bold">Sibling<br />Discount:</span>
-                                <span className="small fw-bold text-end" style={{ maxWidth: '100px' }}>{fee.discount}</span>
-                            </div>
+                                <div className="d-flex justify-content-between mb-2">
+                                    <span className="text-secondary small fw-bold">Monthly Fee:</span>
+                                    <span className="fw-bold">{fee.monthlyFee}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-3 text-success">
+                                    <span className="small fw-bold">Sibling<br />Discount:</span>
+                                    <span className="small fw-bold text-end" style={{ maxWidth: '100px' }}>{fee.discount}</span>
+                                </div>
 
-                            <hr className="my-3" />
+                                <hr className="my-3" />
 
-                            <div className="d-flex justify-content-between align-items-center mb-1">
-                                <span className="fw-bold text-dark">Total Due:</span>
-                                <span className="fw-bold h5 m-0">{fee.totalDue}</span>
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <span className="fw-bold text-dark">Total Due:</span>
+                                    <span className="fw-bold h5 m-0">{fee.totalDue}</span>
+                                </div>
+                                <div className="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                                    <div>
+                                        <small className="text-secondary fw-bold d-block">Due Date</small>
+                                        <span className="text-secondary small">{fee.dueDate}</span>
+                                    </div>
+                                    <button
+                                        className={`btn fw-bold px-4 ${fee.status === 'Pending' ? 'btn-success text-white' : 'btn-light text-secondary disabled'}`}
+                                        style={{ backgroundColor: fee.status === 'Pending' ? '#6c9343' : '' }}
+                                        onClick={() => fee.status === 'Pending' && navigate(`/parent/payment/checkout/${fee.id}`)}
+                                    >
+                                        {fee.status === 'Pending' ? 'Pay Now' : 'Paid'}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="d-flex justify-content-between align-items-center mb-4">
-                                <span className="text-secondary small"><i className="bi bi-calendar me-1"></i> Due Date:</span>
-                                <span className="text-secondary small">{fee.dueDate}</span>
-                            </div>
-
-                            <button className="btn text-white w-100 py-2 rounded-2 fw-bold" style={{ backgroundColor: '#6c9343' }}>
-                                Pay Now
-                            </button>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Payment History & Upcoming */}
@@ -159,7 +169,6 @@ const Payments = () => {
                     </div>
                 </div>
             </div>
-
         </div>
     );
 };
