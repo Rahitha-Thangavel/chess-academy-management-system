@@ -16,7 +16,7 @@ const Salary = () => {
                             </div>
                             <span className="text-secondary small fw-bold text-uppercase">Salary</span>
                         </div>
-                        <h2 className="fw-bold m-0 mt-2">Rs. 24,000</h2>
+                        <h2 className="fw-bold m-0 mt-2">LKR 24,000</h2>
                         <small className="text-muted">November 2024</small>
                     </div>
                 </div>
@@ -39,7 +39,7 @@ const Salary = () => {
                             </div>
                             <span className="text-secondary small fw-bold text-uppercase">Hourly Rate</span>
                         </div>
-                        <h2 className="fw-bold m-0 mt-2">Rs. 600 <span className="fs-5 text-muted fw-normal">/hour</span></h2>
+                        <h2 className="fw-bold m-0 mt-2">LKR 600 <span className="fs-5 text-muted fw-normal">/hour</span></h2>
                     </div>
                 </div>
             </div>
@@ -49,9 +49,9 @@ const Salary = () => {
                 <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded-2">
                     <div>
                         <span className="fw-bold d-block">Basic Hours</span>
-                        <small className="text-muted">40 hours × Rs. 600</small>
+                        <small className="text-muted">40 hours × LKR 600</small>
                     </div>
-                    <span className="fw-bold h5 m-0">Rs. 24,000</span>
+                    <span className="fw-bold h5 m-0">LKR 24,000</span>
                 </div>
             </div>
 
@@ -69,10 +69,10 @@ const Salary = () => {
                         </thead>
                         <tbody>
                             {[
-                                { month: 'October 2024', amount: 'Rs. 27,000' },
-                                { month: 'September 2024', amount: 'Rs. 25,500' },
-                                { month: 'August 2024', amount: 'Rs. 27,000' },
-                                { month: 'July 2024', amount: 'Rs. 24,000' },
+                                { month: 'October 2024', amount: 'LKR 27,000' },
+                                { month: 'September 2024', amount: 'LKR 25,500' },
+                                { month: 'August 2024', amount: 'LKR 27,000' },
+                                { month: 'July 2024', amount: 'LKR 24,000' },
                             ].map((row, idx) => (
                                 <tr key={idx}>
                                     <td className="ps-4 fw-bold">{row.month}</td>

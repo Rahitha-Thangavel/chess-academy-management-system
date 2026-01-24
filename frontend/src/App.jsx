@@ -14,6 +14,15 @@ import VerifyEmailSent from './pages/auth/VerifyEmailSent';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminStudentManagement from './pages/admin/StudentManagement';
+import AdminCoachManagement from './pages/admin/CoachManagement';
+import AdminAttendance from './pages/admin/Attendance';
+import AdminPayments from './pages/admin/Payments';
+import AdminTournaments from './pages/admin/Tournaments';
+import AdminSchedule from './pages/admin/Schedule';
+import AdminRescheduleRequests from './pages/admin/RescheduleRequests';
+import AdminReports from './pages/admin/Reports';
 import CreateAdmin from './pages/admin/CreateAdmin';
 import ClerkDashboard from './pages/clerk/Dashboard';
 import ClerkLayout from './components/clerk/ClerkLayout';
@@ -64,10 +73,93 @@ function App() {
             path="/admin/dashboard"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
-                <AdminDashboard />
+                <AdminLayout>
+                  <AdminDashboard />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/students"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminStudentManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/coaches"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminCoachManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/attendance"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminAttendance />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/payments"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminPayments />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/tournaments"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminTournaments />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/schedule"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminSchedule />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reschedule-requests"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminRescheduleRequests />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminReports />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/admin/create-admin"
             element={

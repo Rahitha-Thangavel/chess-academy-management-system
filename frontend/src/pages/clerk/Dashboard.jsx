@@ -4,7 +4,7 @@ const Dashboard = () => {
   // Mock Data
   const stats = [
     { label: 'Pending registrations', value: 5, color: 'success' },
-    { label: "Today's payments", value: 'Rs. 12,400', color: 'success' },
+    { label: "Today's payments", value: 'LKR 12,400', color: 'success' },
     { label: 'Attendance to record', value: '3 classes', color: 'success' }
   ];
 
@@ -16,7 +16,7 @@ const Dashboard = () => {
 
   const overview = [
     { label: 'Classes scheduled today', value: '6' },
-    { label: 'Expected payments', value: 'Rs. 15,200' },
+    { label: 'Expected payments', value: 'LKR 15,200' },
     { label: 'Coach assignments', value: 'Ravi (3), Malini (2), Rajesh (1)' },
     { label: 'Upcoming tournaments', value: '2' },
   ];

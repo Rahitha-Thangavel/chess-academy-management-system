@@ -9,7 +9,7 @@ const Tournaments = () => {
             title: 'Junior Chess Championship 2024',
             date: 'Dec 15, 2024',
             venue: 'Jaffna Central Hall',
-            fee: 'Rs. 500',
+            fee: 'LKR 500',
             deadline: 'Dec 10, 2024',
             closesIn: '0 days',
             status: 'Open for Registration'

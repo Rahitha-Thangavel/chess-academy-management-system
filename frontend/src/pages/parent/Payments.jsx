@@ -6,9 +6,9 @@ const Payments = () => {
         {
             id: 1,
             name: 'Arjun',
-            monthlyFee: 'Rs. 2,000',
-            discount: '-Rs. 400 (20% for 3 children)',
-            totalDue: 'Rs. 1,600',
+            monthlyFee: 'LKR 2,000',
+            discount: '-LKR 400 (20% for 3 children)',
+            totalDue: 'LKR 1,600',
             dueDate: 'Dec 5, 2024',
             status: 'Pending',
             cardColor: 'border-warning'
@@ -16,9 +16,9 @@ const Payments = () => {
         {
             id: 2,
             name: 'Priya',
-            monthlyFee: 'Rs. 2,000',
-            discount: '-Rs. 400 (20% for 3 children)',
-            totalDue: 'Rs. 1,600',
+            monthlyFee: 'LKR 2,000',
+            discount: '-LKR 400 (20% for 3 children)',
+            totalDue: 'LKR 1,600',
             dueDate: 'Dec 5, 2024',
             status: 'Pending',
             cardColor: 'border-warning'
@@ -26,9 +26,9 @@ const Payments = () => {
         {
             id: 3,
             name: 'Gautam',
-            monthlyFee: 'Rs. 2,000',
-            discount: '-Rs. 400 (20% for 3 children)',
-            totalDue: 'Rs. 1,600',
+            monthlyFee: 'LKR 2,000',
+            discount: '-LKR 400 (20% for 3 children)',
+            totalDue: 'LKR 1,600',
             dueDate: 'Dec 5, 2024',
             status: 'Pending',
             cardColor: 'border-warning'
@@ -36,20 +36,20 @@ const Payments = () => {
     ];
 
     const history = [
-        { date: '2024-11-05', student: 'Arjun', amount: 'Rs. 1,600', method: 'Card', status: 'Paid' },
-        { date: '2024-10-05', student: 'Arjun', amount: 'Rs. 1,600', method: 'Transfer', status: 'Paid' },
-        { date: '2024-09-05', student: 'Arjun', amount: 'Rs. 2,000', method: 'Card', status: 'Paid' },
-        { date: '2024-08-05', student: 'Arjun', amount: 'Rs. 2,000', method: 'Cash', status: 'Paid' },
-        { date: '2024-11-05', student: 'Priya', amount: 'Rs. 1,600', method: 'Card', status: 'Paid' },
-        { date: '2024-10-05', student: 'Priya', amount: 'Rs. 1,600', method: 'Transfer', status: 'Paid' },
-        { date: '2024-11-05', student: 'Gautam', amount: 'Rs. 1,600', method: 'Card', status: 'Paid' },
-        { date: '2024-10-05', student: 'Gautam', amount: 'Rs. 1,600', method: 'Transfer', status: 'Paid' },
+        { date: '2024-11-05', student: 'Arjun', amount: 'LKR 1,600', method: 'Card', status: 'Paid' },
+        { date: '2024-10-05', student: 'Arjun', amount: 'LKR 1,600', method: 'Transfer', status: 'Paid' },
+        { date: '2024-09-05', student: 'Arjun', amount: 'LKR 2,000', method: 'Card', status: 'Paid' },
+        { date: '2024-08-05', student: 'Arjun', amount: 'LKR 2,000', method: 'Cash', status: 'Paid' },
+        { date: '2024-11-05', student: 'Priya', amount: 'LKR 1,600', method: 'Card', status: 'Paid' },
+        { date: '2024-10-05', student: 'Priya', amount: 'LKR 1,600', method: 'Transfer', status: 'Paid' },
+        { date: '2024-11-05', student: 'Gautam', amount: 'LKR 1,600', method: 'Card', status: 'Paid' },
+        { date: '2024-10-05', student: 'Gautam', amount: 'LKR 1,600', method: 'Transfer', status: 'Paid' },
     ];
 
     const upcoming = [
-        { date: 'Dec 5, 2024', student: 'Arjun', amount: 'Rs. 1,600' },
-        { date: 'Dec 5, 2024', student: 'Priya', amount: 'Rs. 1,600' },
-        { date: 'Dec 5, 2024', student: 'Gautam', amount: 'Rs. 1,600' },
+        { date: 'Dec 5, 2024', student: 'Arjun', amount: 'LKR 1,600' },
+        { date: 'Dec 5, 2024', student: 'Priya', amount: 'LKR 1,600' },
+        { date: 'Dec 5, 2024', student: 'Gautam', amount: 'LKR 1,600' },
     ];
 
     return (

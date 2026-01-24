@@ -10,7 +10,7 @@ const Tournaments = () => {
             deadline: 'Dec 10',
             venue: 'Jaffna Central Hall',
             participants: '32 registered',
-            fee: 'Rs. 500',
+            fee: 'LKR 500',
             status: 'Registration Open',
             id: 1
         },
@@ -30,7 +30,7 @@ const Tournaments = () => {
             deadline: 'Jan 10',
             venue: 'District Sports Complex',
             participants: '18 registered',
-            fee: 'Rs. 750',
+            fee: 'LKR 750',
             status: 'Early Registration',
             id: 3
         }
@@ -172,7 +172,7 @@ const Tournaments = () => {
                         </div>
                         <div className="col-md-6">
                             <label className="form-label small fw-bold text-secondary">Entry Fee</label>
-                            <input type="text" className="form-control bg-light border-0 py-2" placeholder="Rs." />
+                            <input type="text" className="form-control bg-light border-0 py-2" placeholder="LKR" />
                         </div>
                         <div className="col-md-6">
                             <label className="form-label small fw-bold text-secondary">Maximum Participants</label>

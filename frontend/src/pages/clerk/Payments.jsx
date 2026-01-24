@@ -5,10 +5,10 @@ const Payments = () => {
 
     // Stats
     const stats = [
-        { label: 'Total Monthly Revenue', value: 'Rs. 243,500' },
-        { label: 'Received This Month', value: 'Rs. 195,700' },
-        { label: 'Pending Payments', value: 'Rs. 47,800' },
-        { label: 'Overdue (> 30 days)', value: 'Rs. 18,500', color: 'danger', bg: 'danger-subtle' }
+        { label: 'Total Monthly Revenue', value: 'LKR 243,500' },
+        { label: 'Received This Month', value: 'LKR 195,700' },
+        { label: 'Pending Payments', value: 'LKR 47,800' },
+        { label: 'Overdue (> 30 days)', value: 'LKR 18,500', color: 'danger', bg: 'danger-subtle' }
     ];
 
     return (
@@ -65,7 +65,7 @@ const Payments = () => {
                         </div>
                         <div className="col-md-6">
                             <label className="form-label small fw-bold text-secondary">Amount</label>
-                            <input type="text" className="form-control bg-light border-0 py-2" placeholder="Rs." />
+                            <input type="text" className="form-control bg-light border-0 py-2" placeholder="LKR" />
                         </div>
                         <div className="col-md-6">
                             <label className="form-label small fw-bold text-secondary">Payment Method</label>
