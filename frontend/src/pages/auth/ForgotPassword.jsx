@@ -29,7 +29,7 @@ const ForgotPassword = () => {
         <div className="auth-container">
             <div className="auth-card">
                 <div className="text-center mb-4">
-                    <h2 className="text-primary">AAA Grand Masters</h2>
+                    <h2 className="text-success" style={{ color: '#6c9343 !important' }}>AAA Grand Master</h2>
                     <h4>Reset Password</h4>
                     <p className="text-muted">Enter your email to receive a reset link</p>
                 </div>
@@ -53,7 +53,7 @@ const ForgotPassword = () => {
                         />
                     </div>
 
-                    <button type="submit" className="btn btn-primary w-100 mb-3" disabled={isSubmitting}>
+                    <button type="submit" className="btn btn-success w-100 mb-3" style={{ backgroundColor: '#6c9343' }} disabled={isSubmitting}>
                         {isSubmitting ? 'Sending Link...' : 'Send Reset Link'}
                     </button>
 

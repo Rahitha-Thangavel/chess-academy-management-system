@@ -147,9 +147,9 @@ const ParentLayout = ({ children }) => {
                                         <p className="m-0 fw-bold text-dark">{user?.first_name} {user?.last_name}</p>
                                         <small className="text-muted">{user?.email}</small>
                                     </div>
-                                    <button className="dropdown-item px-3 py-2 text-dark d-flex align-items-center gap-2">
+                                    <Link to="/parent/profile" className="dropdown-item px-3 py-2 text-dark d-flex align-items-center gap-2">
                                         <i className="bi bi-person"></i> View Profile
-                                    </button>
+                                    </Link>
                                     <button
                                         className="dropdown-item px-3 py-2 text-danger d-flex align-items-center gap-2"
                                         onClick={handleLogout}

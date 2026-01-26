@@ -32,10 +32,11 @@ INSTALLED_APPS = [
     
     # Local apps - ONLY users for now
     'apps.users',
-    # 'apps.students',    # Uncomment when ready
-    # 'apps.batches',     # Uncomment when ready
-    # 'apps.attendance',  # Uncomment when ready
-    # 'apps.payments',    # Uncomment when ready
+    'apps.students',
+    'apps.batches',
+    'apps.attendance',
+    'apps.payments',
+    'apps.tournaments',
     # 'apps.analytics',   # Uncomment when ready
 ]
 

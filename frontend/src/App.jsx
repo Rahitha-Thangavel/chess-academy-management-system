@@ -57,7 +57,10 @@ import NotFound from './pages/errors/NotFound';
 import Unauthorized from './pages/errors/Unauthorized';
 
 // CSS
+// CSS
 import 'bootstrap/dist/css/bootstrap.min.css';
+import MarkAttendance from './pages/coach/MarkAttendance';
+import Profile from './pages/common/Profile';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './App.css';
 
@@ -169,6 +172,27 @@ function App() {
           />
 
           <Route
+            path="/admin/profile"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <Profile />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/notifications"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <Notifications />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin/create-admin"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -229,8 +253,26 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          {/* Coach Routes */}
+          <Route
+            path="/clerk/notifications"
+            element={
+              <ProtectedRoute allowedRoles={['CLERK']}>
+                <ClerkLayout>
+                  <Notifications />
+                </ClerkLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clerk/profile"
+            element={
+              <ProtectedRoute allowedRoles={['CLERK']}>
+                <ClerkLayout>
+                  <Profile />
+                </ClerkLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/coach/dashboard"
             element={
@@ -277,6 +319,36 @@ function App() {
               <ProtectedRoute allowedRoles={['COACH']}>
                 <CoachLayout>
                   <CoachSalary />
+                </CoachLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coach/mark-attendance"
+            element={
+              <ProtectedRoute allowedRoles={['COACH']}>
+                <CoachLayout>
+                  <MarkAttendance />
+                </CoachLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coach/notifications"
+            element={
+              <ProtectedRoute allowedRoles={['COACH']}>
+                <CoachLayout>
+                  <Notifications />
+                </CoachLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coach/profile"
+            element={
+              <ProtectedRoute allowedRoles={['COACH']}>
+                <CoachLayout>
+                  <Profile />
                 </CoachLayout>
               </ProtectedRoute>
             }
@@ -412,6 +484,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/parent/profile"
+            element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout>
+                  <Profile />
+                </ParentLayout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Common Routes */}
           <Route
@@ -435,8 +517,8 @@ function App() {
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </Router>
-    </AuthProvider>
+      </Router >
+    </AuthProvider >
   );
 }
 

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Attendance = () => {
+    const navigate = useNavigate();
     const [status, setStatus] = useState('checked-out'); // 'checked-in' or 'checked-out'
 
     const handleCheckIn = () => {
@@ -39,10 +41,10 @@ const Attendance = () => {
 
                     <button
                         className={`btn ${status === 'checked-in' ? 'btn-danger' : 'btn-success'} px-4 py-2 fw-bold`}
-                        onClick={handleCheckIn}
+                        onClick={() => navigate('/coach/mark-attendance')}
                         style={{ minWidth: '150px' }}
                     >
-                        {status === 'checked-in' ? 'Check Out' : 'Check In'}
+                        Mark Attendance
                     </button>
                 </div>
 

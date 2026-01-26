@@ -1,6 +1,11 @@
 import React from 'react';
 
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+
 const Dashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const stats = [
     { label: 'Classes Today', value: 4, icon: 'bi-calendar-event', color: 'success' },
     { label: 'Students', value: 32, icon: 'bi-people', color: 'success' },
@@ -26,7 +31,7 @@ const Dashboard = () => {
 
   return (
     <div className="container-fluid p-0">
-      <h3 className="fw-bold mb-4">Welcome, Coach Baargav</h3>
+      <h3 className="fw-bold mb-4">Welcome, Coach {user?.first_name || 'User'}</h3>
 
       {/* Stats Cards */}
       <div className="row g-4 mb-5">
@@ -73,7 +78,13 @@ const Dashboard = () => {
                     {cls.status === 'Completed' ? (
                       <button className="btn btn-light btn-sm text-secondary disabled" style={{ backgroundColor: '#f0f2f5' }}>Mark Attendance</button>
                     ) : (
-                      <button className="btn text-white btn-sm px-3" style={{ backgroundColor: '#6c9343' }}>Mark Attendance</button>
+                      <button
+                        className="btn text-white btn-sm px-3"
+                        style={{ backgroundColor: '#6c9343' }}
+                        onClick={() => navigate('/coach/mark-attendance')}
+                      >
+                        Mark Attendance
+                      </button>
                     )}
                   </div>
                 </div>

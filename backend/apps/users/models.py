@@ -63,7 +63,7 @@ class User(AbstractUser):
         COACH = 'COACH', _('Coach')
         PARENT = 'PARENT', _('Parent')
     
-    username = None
+    username = models.CharField(_('username'), max_length=100, unique=True, null=True, blank=True)
     email = models.EmailField(_('email address'), unique=True)
     
     role = models.CharField(
@@ -74,7 +74,9 @@ class User(AbstractUser):
     )
     
     # Common fields
-    phone = models.CharField(_('phone number'), max_length=15, blank=True)
+    first_name = models.CharField(_('first name'), max_length=100)
+    last_name = models.CharField(_('last name'), max_length=100)
+    phone = models.CharField(_('phone number'), max_length=20, blank=True)
     
     # Email Verification fields
     is_email_verified = models.BooleanField(_('email verified'), default=False)
@@ -108,7 +110,7 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
     
     objects = UserManager()
     
@@ -177,80 +179,32 @@ class User(AbstractUser):
         return timezone.now() > expiry_time
 
 
-class ClerkProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='clerk_profile')
-    clerk_id = models.CharField(max_length=20, unique=True, blank=True)
-    created_date = models.DateTimeField(auto_now_add=True)
+class UserProfile(models.Model):
+    class ProfileType(models.TextChoices):
+        ADMIN = 'ADMIN', _('Admin')
+        CLERK = 'CLERK', _('Clerk')
+        COACH = 'COACH', _('Coach')
+        PARENT = 'PARENT', _('Parent')
 
-    def save(self, *args, **kwargs):
-        if not self.clerk_id:
-            last = ClerkProfile.objects.all().order_by('id').last()
-            if not last:
-                self.clerk_id = 'CLK001'
-            else:
-                try:
-                    # Extract number from CLK001 -> 001
-                    last_id = last.clerk_id
-                    number = int(last_id.replace('CLK', ''))
-                    new_number = number + 1
-                    self.clerk_id = f'CLK{new_number:03d}'
-                except ValueError:
-                    self.clerk_id = f'CLK{get_random_string(3)}'
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Clerk: {self.clerk_id} - {self.user.email}"
-
-
-class CoachProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='coach_profile')
-    coach_id = models.CharField(max_length=20, unique=True, blank=True)
-    specialization = models.CharField(max_length=100, blank=True)
-    hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    hire_date = models.DateField(null=True, blank=True)
-    created_date = models.DateTimeField(auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        if not self.coach_id:
-            last = CoachProfile.objects.all().order_by('id').last()
-            if not last:
-                self.coach_id = 'COA001'
-            else:
-                try:
-                    last_id = last.coach_id
-                    number = int(last_id.replace('COA', ''))
-                    new_number = number + 1
-                    self.coach_id = f'COA{new_number:03d}'
-                except ValueError:
-                    self.coach_id = f'COA{get_random_string(3)}'
-        super().save(*args, **kwargs)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    profile_type = models.CharField(
+        max_length=10,
+        choices=ProfileType.choices,
+        default=ProfileType.PARENT
+    )
+    
+    # Parent-specific (nullable for others)
+    address = models.TextField(blank=True, null=True)
+    emergency_contact = models.CharField(max_length=20, blank=True, null=True)
+    relationship = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Coach-specific (nullable for others)
+    qualification = models.TextField(blank=True, null=True)
+    hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Coach: {self.coach_id} - {self.user.email}"
-
-
-class ParentProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='parent_profile')
-    parent_id = models.CharField(max_length=20, unique=True, blank=True)
-    address = models.TextField(blank=True)
-    emergency_contact = models.CharField(max_length=15, blank=True)
-    relationship = models.CharField(max_length=50, blank=True, help_text="Relationship with student")
-    created_date = models.DateTimeField(auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        if not self.parent_id:
-            last = ParentProfile.objects.all().order_by('id').last()
-            if not last:
-                self.parent_id = 'PAR001'
-            else:
-                try:
-                    last_id = last.parent_id
-                    number = int(last_id.replace('PAR', ''))
-                    new_number = number + 1
-                    self.parent_id = f'PAR{new_number:03d}'
-                except ValueError:
-                    self.parent_id = f'PAR{get_random_string(3)}'
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Parent: {self.parent_id} - {self.user.email}"
+        return f"{self.user.email} - {self.get_profile_type_display()}"
