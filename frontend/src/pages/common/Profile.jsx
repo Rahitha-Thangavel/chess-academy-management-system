@@ -27,7 +27,8 @@ const Profile = () => {
                             </div>
 
                             <div style={{ paddingTop: '60px' }}>
-                                <h3 className="fw-bold m-0">{user?.first_name} {user?.last_name}</h3>
+                                <h3 className="fw-bold m-0">@{user?.username || 'user'}</h3>
+                                <p className="text-secondary mb-0">{user?.first_name} {user?.last_name}</p>
                                 <div className="badge bg-success-subtle text-success mt-2 px-3 py-2 rounded-pill">
                                     {user?.role} Account
                                 </div>
@@ -45,6 +46,10 @@ const Profile = () => {
                                 <div className="col-md-6">
                                     <label className="small text-secondary fw-bold">Last Name</label>
                                     <div className="p-2 bg-light rounded border-0 fw-bold">{user?.last_name}</div>
+                                </div>
+                                <div className="col-md-12">
+                                    <label className="small text-secondary fw-bold">Username</label>
+                                    <div className="p-2 bg-light rounded border-0 fw-bold">@{user?.username}</div>
                                 </div>
                                 <div className="col-md-6">
                                     <label className="small text-secondary fw-bold">Email Address</label>

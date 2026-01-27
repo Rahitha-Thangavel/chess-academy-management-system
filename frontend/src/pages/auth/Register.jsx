@@ -9,6 +9,7 @@ const Register = () => {
   // Base State
   const [formData, setFormData] = useState({
     email: '',
+    username: '',
     password: '',
     confirm_password: '',
     phone: '',
@@ -70,6 +71,7 @@ const Register = () => {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.email) newErrors.email = 'Email is required';
+    if (!formData.username) newErrors.username = 'Username is required';
     if (!formData.first_name) newErrors.first_name = 'First name is required';
     if (!formData.last_name) newErrors.last_name = 'Last name is required';
 
@@ -104,6 +106,7 @@ const Register = () => {
 
     const payload = {
       email: formData.email,
+      username: formData.username,
       password: formData.password,
       confirm_password: formData.confirm_password,
       phone: formData.phone,
@@ -131,6 +134,15 @@ const Register = () => {
         }, 2000);
       } else {
         setSubmitStatus('');
+        // Handle Backend Validation Errors
+        if (result.error && result.error.errors) {
+          const backendErrors = {};
+          Object.keys(result.error.errors).forEach((key) => {
+            backendErrors[key] = result.error.errors[key][0];
+          });
+          setErrors(backendErrors);
+          setAuthError(null); // Don't show global error if we have field errors
+        }
       }
     } catch (e) {
       console.error(e);
@@ -227,7 +239,9 @@ const Register = () => {
 
         {authError && (
           <div className="alert alert-danger">
-            {typeof authError === 'object' ? JSON.stringify(authError) : authError}
+            {typeof authError === 'object'
+              ? (authError.message || authError.error || 'Registration failed')
+              : authError}
           </div>
         )}
 
@@ -270,6 +284,19 @@ const Register = () => {
               onChange={handleChange}
             />
             {errors.email && <div className="invalid-feedback">{errors.email}</div>}
+          </div>
+
+          {/* Username */}
+          <div className="mb-3">
+            <label className="form-label">Username</label>
+            <input
+              type="text"
+              className={`form-control ${errors.username ? 'is-invalid' : ''}`}
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+            />
+            {errors.username && <div className="invalid-feedback">{errors.username}</div>}
           </div>
 
           {/* Phone - Common Field */}

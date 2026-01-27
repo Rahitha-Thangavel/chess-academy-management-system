@@ -13,6 +13,7 @@ class Batch(models.Model):
         SAT = 'SAT', _('Saturday')
         SUN = 'SUN', _('Sunday')
 
+    id = models.CharField(primary_key=True, max_length=20, editable=False)
     batch_name = models.CharField(max_length=100)
     schedule_day = models.CharField(
         max_length=3,
@@ -33,6 +34,29 @@ class Batch(models.Model):
 
     def __str__(self):
         return self.batch_name
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = self.generate_batch_id()
+        super().save(*args, **kwargs)
+
+    def generate_batch_id(self):
+        prefix = "BATCH-"
+        
+        # Get last batch
+        last_batch = Batch.objects.filter(id__startswith=prefix).order_by('id').last()
+        
+        if last_batch:
+            try:
+                # Extract sequence (after BATCH-)
+                last_seq = int(last_batch.id[6:])
+                new_seq = last_seq + 1
+            except ValueError:
+                new_seq = 1
+        else:
+            new_seq = 1
+            
+        return f"{prefix}{new_seq:03d}"
 
 class BatchEnrollment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='enrollments')

@@ -1,8 +1,10 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from apps.students.models import Student
 
 class Tournament(models.Model):
+    id = models.CharField(primary_key=True, max_length=20, editable=False)
     tournament_name = models.CharField(max_length=100)
     tournament_date = models.DateField()
     venue = models.CharField(max_length=255, blank=True, null=True)
@@ -18,6 +20,31 @@ class Tournament(models.Model):
 
     def __str__(self):
         return self.tournament_name
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = self.generate_tournament_id()
+        super().save(*args, **kwargs)
+
+    def generate_tournament_id(self):
+        year = timezone.now().year
+        prefix = f"TOUR{year}"
+        
+        # Get last tournament
+        last_tour = Tournament.objects.filter(id__startswith=prefix).order_by('id').last()
+        
+        if last_tour:
+            try:
+                # Extract sequence (after TOUR2024 -> index 8)
+                # TOUR + 4 digits = 8 chars
+                last_seq = int(last_tour.id[8:])
+                new_seq = last_seq + 1
+            except ValueError:
+                new_seq = 1
+        else:
+            new_seq = 1
+            
+        return f"{prefix}{new_seq:03d}"
 
 class TournamentRegistration(models.Model):
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='registrations')

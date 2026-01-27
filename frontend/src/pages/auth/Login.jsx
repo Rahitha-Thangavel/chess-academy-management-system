@@ -83,11 +83,11 @@ const Login = () => {
           <form onSubmit={handleSubmit}>
             <div className="form-group mb-4">
               <div className="form-floating-custom">
-                <i className="bi bi-envelope input-icon"></i>
+                <i className="bi bi-person input-icon"></i>
                 <input
-                  type="email"
+                  type="text"
                   className="form-control-custom"
-                  placeholder="Email Address"
+                  placeholder="Email or Username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

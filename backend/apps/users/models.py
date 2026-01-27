@@ -16,6 +16,12 @@ class UserManager(BaseUserManager):
             raise ValueError('The given email must be set')
         
         email = self.normalize_email(email)
+        # Determine role for ID generation
+        role = extra_fields.get('role', 'PARENT') # Default to PARENT if not specified
+        
+        # Custom ID generation is handled in model.save()
+
+
         user = self.model(email=email, **extra_fields)
         
         if password:
@@ -62,6 +68,9 @@ class User(AbstractUser):
         CLERK = 'CLERK', _('Clerk')
         COACH = 'COACH', _('Coach')
         PARENT = 'PARENT', _('Parent')
+
+    # Custom Primary Key
+    id = models.CharField(primary_key=True, max_length=20, editable=False)
     
     username = models.CharField(_('username'), max_length=100, unique=True, null=True, blank=True)
     email = models.EmailField(_('email address'), unique=True)
@@ -145,6 +154,36 @@ class User(AbstractUser):
         self.email_verification_sent_at = timezone.now()
         self.save()
         return self.email_verification_token
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = self.generate_custom_id()
+        super().save(*args, **kwargs)
+
+    def generate_custom_id(self):
+        prefix_map = {
+            self.Role.ADMIN: 'ADM',
+            self.Role.CLERK: 'CLK',
+            self.Role.COACH: 'COA',
+            self.Role.PARENT: 'PAR',
+        }
+        prefix = prefix_map.get(self.role, 'USR')
+        
+        # Get last user with this prefix
+        last_user = User.objects.filter(id__startswith=prefix).order_by('id').last()
+        
+        if last_user:
+            # Extract number from ID (last 3 chars)
+            try:
+                last_seq = int(last_user.id[3:])
+                new_seq = last_seq + 1
+            except ValueError:
+                new_seq = 1
+        else:
+            new_seq = 1
+            
+        return f"{prefix}{new_seq:03d}"
+
     
     def is_verification_token_expired(self):
         """Check if verification token has expired (24 hours)."""

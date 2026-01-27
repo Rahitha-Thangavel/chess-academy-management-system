@@ -195,8 +195,31 @@ class LoginView(APIView):
             email = serializer.validated_data['email']
             password = serializer.validated_data['password']
             
-            # Authenticate user
-            user = authenticate(request, email=email, password=password)
+            # Authenticate user with Email or Username
+            from django.db.models import Q
+            try:
+                # Check if input is email or username
+                user_obj = User.objects.filter(
+                    Q(email=email) | Q(username=email)
+                ).first()
+                
+                if user_obj:
+                    # If user found, verify password manually or use authenticate with actual username
+                    # create a custom authentication backend or just use check_password if simplistic
+                    # Better: authenticate using the found user's credentials
+                    # Standard authenticate() expects 'username' and 'password'
+                    # We can pass the found user's email or username as 'username' arg if using ModelBackend
+                    
+                    user = authenticate(request, username=user_obj.email, password=password)
+                    if not user:
+                         # Try with actual username if email/username differ in auth backend logic
+                         user = authenticate(request, username=user_obj.username, password=password)
+                else:
+                    user = None
+
+            except Exception as e:
+                print(f"Login Error: {e}")
+                user = None
             
             if user is not None:
                 # Check if email is verified
