@@ -20,7 +20,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('apps.users.urls')),
     # Comment out other apps until we create proper views
-    # path('api/', include('apps.students.urls')),
+    path('api/', include('apps.students.urls')),
     # path('api/', include('apps.batches.urls')),
     # path('api/', include('apps.attendance.urls')),
     # path('api/', include('apps.payments.urls')),

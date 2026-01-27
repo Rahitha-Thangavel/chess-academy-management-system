@@ -21,6 +21,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   // Check if user has required role
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    console.log(`Debug ProtectedRoute: Access Denied. User Role: ${user?.role}, Allowed: ${allowedRoles}`);
+    console.log("Full User Object:", user);
     return <Navigate to="/unauthorized" replace />;
   }
 

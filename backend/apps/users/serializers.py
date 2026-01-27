@@ -263,6 +263,12 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.id')
+    role = serializers.ReadOnlyField(source='user.role')
+    first_name = serializers.ReadOnlyField(source='user.first_name')
+    last_name = serializers.ReadOnlyField(source='user.last_name')
+    email = serializers.ReadOnlyField(source='user.email')
+
     class Meta:
         model = UserProfile
         fields = '__all__'

@@ -282,7 +282,15 @@ class UserProfileView(APIView):
     
     def get(self, request):
         """Get user profile."""
-        serializer = UserProfileSerializer(request.user)
+        try:
+            profile = request.user.profile
+        except UserProfile.DoesNotExist:
+            # Create profile if it doesn't exist (fallback for old users or migration issues)
+            # Or return 404. For now, let's return a 404 or creating it? 
+            # Ideally registration creates it. If missing, it's a data integrity issue.
+            return Response({'error': 'User profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = UserProfileSerializer(profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def put(self, request):

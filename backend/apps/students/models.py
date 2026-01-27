@@ -7,6 +7,8 @@ class Student(models.Model):
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', _('Active')
         INACTIVE = 'INACTIVE', _('Inactive')
+        PENDING = 'PENDING', _('Pending')
+        REJECTED = 'REJECTED', _('Rejected')
 
     id = models.CharField(primary_key=True, max_length=20, editable=False)
     # student_code removed as it is now the PK
@@ -14,16 +16,23 @@ class Student(models.Model):
     last_name = models.CharField(max_length=100)
     date_of_birth = models.DateField()
     grade_level = models.CharField(max_length=50, blank=True, null=True)
-    enrollment_date = models.DateField()
+    school = models.CharField(max_length=200, blank=True, null=True)
+    enrollment_date = models.DateField(auto_now_add=True)  # Changed to auto_now_add for registration date
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
-        default=Status.ACTIVE
+        default=Status.PENDING
     )
     parent_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='students'
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_students'
     )
     
     created_at = models.DateTimeField(auto_now_add=True)

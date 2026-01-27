@@ -29,10 +29,26 @@ export const AuthProvider = ({ children }) => {
           setUser(profile);
         } catch (err) {
           console.error('Auth check failed:', err);
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user');
-          setUser(null);
+          // Only logout if it's an authentication error (401/403)
+          if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            setUser(null);
+          } else {
+            // For other errors (network, 500), keep the user logged in but maybe show a global error?
+            // For now, we assume the session is still valid until proven otherwise by a 401.
+            // However, we might want to set the user from localStorage as a fallback 
+            // if we can't reach the server, so the UI still renders.
+            try {
+              const fallbackUser = JSON.parse(storedUser);
+              setUser(fallbackUser);
+            } catch (e) {
+              // Corrupt storage
+              localStorage.removeItem('user');
+              setUser(null);
+            }
+          }
         }
       }
       setLoading(false);
