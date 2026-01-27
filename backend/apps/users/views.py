@@ -423,6 +423,47 @@ class PasswordResetConfirmView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class UserListView(APIView):
+    """View to list users, optionally filtered by role."""
+    
+    # Only Admin (or maybe Clerk?) should view all users
+    permission_classes = [permissions.IsAuthenticated] 
+
+    def get(self, request):
+        """Get list of users."""
+        # Check permission: Only Admin or Clerk usually. 
+        # For now, let's restrict to Admin for general list, or check role.
+        if not (request.user.is_admin() or request.user.is_clerk()):
+             return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+
+        role = request.query_params.get('role')
+        users = User.objects.all()
+        
+        if role:
+            users = users.filter(role=role.upper())
+            
+        # Use UserSerializer for basic info, maybe need profile?
+        # UserSerializer includes role, name, email, phone.
+        # But for coaches we might want qualification etc. which are in profile.
+        # Ideally we return a rich object. 
+        # Let's map it manually or use a serializer that includes profile.
+        
+        data = []
+        for user in users:
+            user_data = UserSerializer(user).data
+            # Inject profile data if available
+            try:
+                if user.role == 'COACH':
+                     profile = user.profile
+                     user_data['qualification'] = profile.qualification
+                     user_data['hourly_rate'] = profile.hourly_rate
+                     user_data['date_of_birth'] = profile.date_of_birth
+            except Exception:
+                pass
+            data.append(user_data)
+
+        return Response(data, status=status.HTTP_200_OK)
+
 # Permission Classes for Role-Based Access
 class IsAdmin(permissions.BasePermission):
     """Permission check for Admin users."""

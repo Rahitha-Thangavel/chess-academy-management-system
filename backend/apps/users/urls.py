@@ -10,7 +10,8 @@ from .views import (
     UserProfileView,
     ChangePasswordView,
     PasswordResetRequestView,
-    PasswordResetConfirmView
+    PasswordResetConfirmView,
+    UserListView
 )
 
 urlpatterns = [
@@ -29,4 +30,5 @@ urlpatterns = [
     # Profile endpoints
     path('profile/', UserProfileView.as_view(), name='profile'),
     path('change-password/', ChangePasswordView.as_view(), name='change_password'),
+    path('users/', UserListView.as_view(), name='user-list'),
 ]
