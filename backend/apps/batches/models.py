@@ -68,3 +68,50 @@ class BatchEnrollment(models.Model):
 
     def __str__(self):
         return f"{self.student} -> {self.batch}"
+
+class CoachAvailability(models.Model):
+    coach = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='availabilities'
+    )
+    day_of_week = models.CharField(
+        max_length=3,
+        choices=Batch.DayOfWeek.choices
+    )
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.coach} ({self.day_of_week}: {self.start_time}-{self.end_time})"
+
+class RescheduleRequest(models.Model):
+    class RequestStatus(models.TextChoices):
+        PENDING = 'PENDING', _('Pending')
+        APPROVED = 'APPROVED', _('Approved')
+        REJECTED = 'REJECTED', _('Rejected')
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='reschedule_requests')
+    original_batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='reschedule_source', null=True, blank=True)
+    original_date = models.DateField()
+    
+    # Target: could be a specific batch or just a requested date/time
+    target_batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='reschedule_target', null=True, blank=True)
+    preferred_date = models.DateField(null=True, blank=True)
+    reason = models.TextField(blank=True)
+    
+    status = models.CharField(
+        max_length=10,
+        choices=RequestStatus.choices,
+        default=RequestStatus.PENDING
+    )
+    
+    admin_comment = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.student} Request: {self.original_date} -> {self.preferred_date or self.target_batch}"

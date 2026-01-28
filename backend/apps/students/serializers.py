@@ -24,9 +24,14 @@ class StudentSerializer(serializers.ModelSerializer):
             'parent_username',
             'parent_name',
             'created_by',
-            'created_by_name'
+            'created_by_name',
+            'enrollments'
         ]
         read_only_fields = ['id', 'enrollment_date', 'status', 'parent_user', 'created_by']
+
+    def get_enrollments(self, obj):
+        from apps.batches.serializers import BatchEnrollmentSerializer
+        return BatchEnrollmentSerializer(obj.enrollments.all(), many=True).data
 
     def get_parent_name(self, obj):
         return f"{obj.parent_user.first_name} {obj.parent_user.last_name}"

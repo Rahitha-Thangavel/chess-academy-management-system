@@ -26,25 +26,35 @@ export const AuthProvider = ({ children }) => {
         try {
           // Verify token is valid by getting profile
           const profile = await authAPI.getProfile();
-          setUser(profile);
+
+          // The profile endpoint returns the UserProfile data (which includes role fields)
+          // We need to ensure the role matched what we expect.
+          // Profile serializer in backend returns 'role' from 'user.role'
+
+          const localUser = JSON.parse(storedUser);
+
+          if (profile.role && profile.role !== localUser.role) {
+            console.warn(`Role mismatch detected on refresh! Server: ${profile.role}, Local: ${localUser.role}`);
+            // If roles mismatch, trust the server but update the local storage to keep state consistent
+            const updatedUser = { ...localUser, ...profile };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+          } else {
+            // Roles match or profile didn't provide role clearly
+            setUser({ ...localUser, ...profile });
+          }
         } catch (err) {
           console.error('Auth check failed:', err);
-          // Only logout if it's an authentication error (401/403)
           if (err.response && (err.response.status === 401 || err.response.status === 403)) {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             localStorage.removeItem('user');
             setUser(null);
           } else {
-            // For other errors (network, 500), keep the user logged in but maybe show a global error?
-            // For now, we assume the session is still valid until proven otherwise by a 401.
-            // However, we might want to set the user from localStorage as a fallback 
-            // if we can't reach the server, so the UI still renders.
             try {
               const fallbackUser = JSON.parse(storedUser);
               setUser(fallbackUser);
             } catch (e) {
-              // Corrupt storage
               localStorage.removeItem('user');
               setUser(null);
             }

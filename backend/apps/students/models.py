@@ -41,6 +41,10 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.id})"
 
+    def get_full_name(self):
+        """Return the full name of the student."""
+        return f"{self.first_name} {self.last_name}".strip()
+
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = self.generate_student_id()

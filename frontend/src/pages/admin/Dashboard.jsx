@@ -1,25 +1,44 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from '../../api/axiosInstance';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminDashboard = () => {
-  // Mock Data
-  const stats = [
-    { label: 'Total Students', value: '127', icon: 'bi-people', bg: 'bg-light text-success' },
-    { label: 'Active Coaches', value: '8', icon: 'bi-person-badge', bg: 'bg-light text-success' },
-    { label: 'Pending Actions', value: '15', icon: 'bi-exclamation-triangle', bg: 'bg-warning-subtle text-warning' },
-    { label: 'Notifications', value: '8', icon: 'bi-bell', bg: 'bg-light text-success' },
-    { label: "Today's Classes", value: '12', icon: 'bi-calendar-event', bg: 'bg-light text-success' },
-    { label: 'Payments Due', value: 'LKR 68,200', icon: 'bi-currency-dollar', bg: 'bg-light text-success' }
-  ];
+  const { user } = useAuth();
+  const [statsData, setStatsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const timeline = [
-    { time: '8:30 AM', title: 'Beginner A', coach: 'Coach Ravi', students: '18 students', class: 'bg-light' },
-    { time: '10:00 AM', title: 'Intermediate B', coach: 'Coach Malini', students: '15 students', class: 'bg-light' },
-    { time: '11:30 AM', title: 'Starter Class', coach: 'Coach Rajesh', students: '12 students', class: 'bg-light' },
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await axios.get('/analytics/reports/dashboard_stats/');
+        setStatsData(response.data);
+      } catch (err) {
+        console.error('Error fetching dashboard stats:', err);
+        setError(err.response?.data?.error || err.message || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) return <div className="p-5 text-center">Loading dashboard...</div>;
+  if (error) return <div className="p-5 text-center text-danger">Error: {error}</div>;
+
+  const stats = [
+    { label: 'Total Students', value: statsData.total_students, icon: 'bi-people', bg: 'bg-light text-success' },
+    { label: 'Active Coaches', value: statsData.active_coaches, icon: 'bi-person-badge', bg: 'bg-light text-success' },
+    { label: 'Pending Actions', value: statsData.pending_actions, icon: 'bi-exclamation-triangle', bg: 'bg-warning-subtle text-warning' },
+    { label: 'Notifications', value: statsData.notifications, icon: 'bi-bell', bg: 'bg-light text-success' },
+    { label: "Today's Classes", value: statsData.todays_classes, icon: 'bi-calendar-event', bg: 'bg-light text-success' },
+    { label: 'Payments Due', value: `LKR ${Number(statsData.payments_due).toLocaleString()}`, icon: 'bi-currency-dollar', bg: 'bg-light text-success' }
   ];
 
   return (
     <div className="container-fluid p-0">
-      <h3 className="fw-bold mb-2 text-success" style={{ color: '#6c9343' }}>Welcome, Admin</h3>
+      <h3 className="fw-bold mb-2 text-success" style={{ color: '#6c9343' }}>Welcome, {user?.first_name || 'Admin'}</h3>
 
       <div className="row g-4 mt-2">
         {/* Left Column: Stats & Notifications */}
@@ -53,7 +72,7 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <small className="text-secondary fw-bold d-block">Notifications</small>
-                <h4 className="fw-bold m-0">8</h4>
+                <h4 className="fw-bold m-0">{statsData.notifications}</h4>
               </div>
             </div>
           </div>
@@ -67,16 +86,20 @@ const AdminDashboard = () => {
               <h6 className="fw-bold m-0">Today's Schedule</h6>
             </div>
             <div className="p-3 d-flex flex-column gap-3">
-              {timeline.map((item, idx) => (
-                <div key={idx} className="p-3 rounded-3" style={{ backgroundColor: '#f8f9fa' }}>
-                  <h6 className="fw-bold m-0 d-flex justify-content-between">
-                    {item.time}
-                    <span className="text-secondary fw-normal" style={{ fontSize: '0.9rem' }}>{item.title}</span>
-                  </h6>
-                  <div className="text-secondary small mt-1">({item.coach})</div>
-                  <div className="text-secondary small mt-1">{item.students}</div>
-                </div>
-              ))}
+              {statsData.todays_schedule.length === 0 ? (
+                <div className="text-center text-secondary py-3">No classes scheduled today.</div>
+              ) : (
+                statsData.todays_schedule.map((item, idx) => (
+                  <div key={idx} className="p-3 rounded-3" style={{ backgroundColor: '#f8f9fa' }}>
+                    <h6 className="fw-bold m-0 d-flex justify-content-between">
+                      {item.time}
+                      <span className="text-secondary fw-normal" style={{ fontSize: '0.9rem' }}>{item.title}</span>
+                    </h6>
+                    <div className="text-secondary small mt-1">({item.coach})</div>
+                    <div className="text-secondary small mt-1">{item.students}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -88,21 +111,12 @@ const AdminDashboard = () => {
             <div className="p-4">
               <div className="d-flex justify-content-between mb-3">
                 <span className="text-secondary fw-bold">Monthly Revenue</span>
-                <span className="fw-bold text-success">LKR 243,500</span>
+                <span className="fw-bold text-success">LKR {Number(statsData.monthly_revenue).toLocaleString()}</span>
               </div>
               <div className="d-flex justify-content-between mb-3">
                 <span className="text-secondary fw-bold">Pending Payments</span>
-                <span className="fw-bold text-warning">LKR 47,800</span>
+                <span className="fw-bold text-warning">LKR {Number(statsData.payments_due).toLocaleString()}</span>
               </div>
-              <div className="d-flex justify-content-between mb-4">
-                <span className="text-secondary fw-bold">Coach Salaries</span>
-                <span className="fw-bold text-danger">LKR 125,000</span>
-              </div>
-
-              <div className="progress" style={{ height: '6px' }}>
-                <div className="progress-bar" role="progressbar" style={{ width: '65%', backgroundColor: '#6c9343' }} aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
-              </div>
-              <small className="text-secondary d-block mt-2">65% of monthly target reached</small>
             </div>
           </div>
         </div>

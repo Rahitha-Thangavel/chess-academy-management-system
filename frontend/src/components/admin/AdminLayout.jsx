@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import axios from '../../api/axiosInstance';
 
 const AdminLayout = ({ children }) => {
     const { logout, user } = useAuth();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [stats, setStats] = useState({ pending_students: 0, pending_reschedules: 0 });
     const profileMenuRef = useRef(null);
 
     useEffect(() => {
@@ -19,6 +21,22 @@ const AdminLayout = ({ children }) => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    useEffect(() => {
+        fetchStats();
+        // Optional: Poll for stats every 30 seconds
+        const interval = setInterval(fetchStats, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const fetchStats = async () => {
+        try {
+            const response = await axios.get('/analytics/reports/dashboard_stats/');
+            setStats(response.data);
+        } catch (error) {
+            console.error('Error fetching dashboard stats:', error);
+        }
+    };
 
     return (
         <div className="d-flex bg-light" style={{ minHeight: '100vh', width: '100%' }}>
@@ -54,7 +72,9 @@ const AdminLayout = ({ children }) => {
                                     <i className="bi bi-people-fill"></i>
                                     <span className="text-truncate">Student Management</span>
                                 </div>
-                                <span className="badge bg-primary-subtle text-primary rounded-pill" style={{ fontSize: '0.7rem' }}>127</span>
+                                {stats.pending_students > 0 && (
+                                    <span className="badge bg-primary-subtle text-primary rounded-pill" style={{ fontSize: '0.7rem' }}>{stats.pending_students}</span>
+                                )}
                             </div>
                         </NavLink>
                     </li>
@@ -71,7 +91,7 @@ const AdminLayout = ({ children }) => {
                                     <i className="bi bi-person-badge-fill"></i>
                                     <span className="text-truncate">Coach Management</span>
                                 </div>
-                                <span className="badge bg-primary-subtle text-primary rounded-pill" style={{ fontSize: '0.7rem' }}>8</span>
+                                {/* Removed badge as requested */}
                             </div>
                         </NavLink>
                     </li>
@@ -136,7 +156,9 @@ const AdminLayout = ({ children }) => {
                                     <i className="bi bi-exclamation-circle-fill"></i>
                                     <span style={{ lineHeight: '1.2' }}>Reschedule<br />Approval</span>
                                 </div>
-                                <span className="badge bg-success rounded-pill" style={{ fontSize: '0.7rem' }}>12</span>
+                                {stats.pending_reschedules > 0 && (
+                                    <span className="badge bg-success rounded-pill" style={{ fontSize: '0.7rem' }}>{stats.pending_reschedules}</span>
+                                )}
                             </div>
                         </NavLink>
                     </li>
@@ -177,16 +199,16 @@ const AdminLayout = ({ children }) => {
                             >
                                 <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
                                     style={{ width: '35px', height: '35px', backgroundColor: '#6c9343' }}>
-                                    A
+                                    {user?.first_name?.charAt(0) || 'A'}
                                 </div>
-                                <span className="d-none d-md-block small fw-bold">Admin</span>
+                                <span className="d-none d-md-block small fw-bold">{user?.first_name || 'Admin'}</span>
                             </button>
 
                             {showProfileMenu && (
                                 <div className="position-absolute end-0 mt-2 bg-white border rounded shadow-sm py-2" style={{ minWidth: '200px', top: '100%', right: 0, zIndex: 1050 }}>
                                     <div className="px-3 py-2 border-bottom mb-2">
-                                        <p className="m-0 fw-bold">Admin User</p>
-                                        <small className="text-secondary">admin@cams.com</small>
+                                        <p className="m-0 fw-bold">{user?.first_name} {user?.last_name}</p>
+                                        <small className="text-secondary">{user?.email}</small>
                                     </div>
                                     <button className="dropdown-item px-3 py-2 text-secondary d-flex align-items-center gap-2">
                                         <i className="bi bi-person"></i> View Profile

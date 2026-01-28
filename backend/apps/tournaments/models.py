@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from apps.students.models import Student
 
 class Tournament(models.Model):
@@ -47,12 +48,42 @@ class Tournament(models.Model):
         return f"{prefix}{new_seq:03d}"
 
 class TournamentRegistration(models.Model):
+    class PaymentStatus(models.TextChoices):
+        PENDING = 'PENDING', _('Pending')
+        PAID = 'PAID', _('Paid')
+
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='registrations')
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='tournament_registrations')
     registration_date = models.DateField()
+    
+    # New fields for requirements
+    payment_status = models.CharField(
+        max_length=10, 
+        choices=PaymentStatus.choices, 
+        default=PaymentStatus.PENDING
+    )
+    attended = models.BooleanField(default=False)
+    score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    rank = models.PositiveIntegerField(null=True, blank=True)
     
     class Meta:
         unique_together = ('tournament', 'student')
 
     def __str__(self):
         return f"{self.student} -> {self.tournament}"
+
+class TournamentMatch(models.Model):
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='matches')
+    player1 = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='matches_as_p1')
+    player2 = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='matches_as_p2')
+    round_number = models.PositiveIntegerField()
+    match_date = models.DateTimeField(null=True, blank=True)
+    
+    # Outcome
+    winner = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True, related_name='matches_won')
+    result_details = models.TextField(blank=True, help_text="Score or details of the match")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.tournament} - R{self.round_number}: {self.player1} vs {self.player2}"
