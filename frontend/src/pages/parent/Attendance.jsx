@@ -1,38 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from '../../api/axiosInstance';
 
 const Attendance = () => {
-    const [selectedChild, setSelectedChild] = useState('Arjun');
-    const [currentDate, setCurrentDate] = useState(new Date(2024, 10, 1)); // November 2024 as in mockup
+    const [children, setChildren] = useState([]);
+    const [selectedChild, setSelectedChild] = useState('');
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [attendanceMap, setAttendanceMap] = useState({});
+    const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, rate: '0%' });
+    const [history, setHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const children = ['Arjun', 'Priya', 'Gautam'];
+    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const startDayOffset = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay(); // 0=Sun, 1=Mon... 
+    // Adjust offset if you want Mon start (0->6, 1->0) etc. Standard JS getDay() is Sun=0. 
+    // If UI expects Mon=0, offset = (day + 6) % 7. Let's assume Sun=0 for now or match UI grid.
+    // UI header: Mon, Tue... Sun. This implies Mon start.
+    const uiStartDayOffset = (startDayOffset + 6) % 7;
 
-    // Mock Calendar Data for Nov 2024
-    const daysInMonth = 30;
-    const startDayOffset = 4; // Nov 1 2024 was Friday (approx for mock)
+    useEffect(() => {
+        fetchChildren();
+    }, []);
 
-    const attendanceData = {
-        4: 'P', 5: 'P', 6: 'A', 7: 'P', 8: 'P',
-        11: 'P', 12: 'P', 13: 'P', 14: 'L', 15: 'P',
-        18: 'P', 19: 'P', 20: 'P', 21: 'P',
-        25: 'P', 26: 'P', 27: 'P', 28: 'P'
+    useEffect(() => {
+        if (selectedChild) {
+            fetchAttendance();
+        }
+    }, [selectedChild, currentDate]);
+
+    const fetchChildren = async () => {
+        try {
+            const res = await axios.get('/students/my_children/');
+            setChildren(res.data);
+            if (res.data.length > 0) {
+                setSelectedChild(res.data[0].id);
+            }
+        } catch (error) {
+            console.error('Error fetching children:', error);
+        }
     };
 
-    const stats = {
-        total: 20,
-        present: 18,
-        absent: 2, // Includes Late for simplicity in count or separate
-        rate: '90%'
+    const fetchAttendance = async () => {
+        setLoading(true);
+        try {
+            // Fetch all records for parent (backend filters by parent user)
+            const res = await axios.get('/student-attendance/');
+
+            // Filter by selected child and current month
+            const childRecords = res.data.filter(r =>
+                r.student === parseInt(selectedChild) || r.student === selectedChild
+                // Backend might return ID or object. Usually ID in generic view set unless nested.
+                // Looking at serializer: BatchEnrollmentSerializer (not used here), AttendanceSerializer?
+                // Standard AttendanceSerializer usually has student field.
+            );
+
+            // Process records for the month
+            const map = {};
+            let present = 0;
+            let absent = 0;
+            const historyList = [];
+
+            childRecords.forEach(record => {
+                const d = new Date(record.attendance_date);
+                if (d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear()) {
+                    const day = d.getDate();
+                    const statusChar = record.status === 'PRESENT' ? 'P' : record.status === 'ABSENT' ? 'A' : 'L';
+                    map[day] = statusChar;
+
+                    if (record.status === 'PRESENT') present++;
+                    else absent++;
+
+                    historyList.push({
+                        date: d.toLocaleDateString(),
+                        status: record.status,
+                        time: '-', // Backend doesn't seem to have check-in time for students yet? Or check model.
+                        color: record.status === 'PRESENT' ? 'success' : 'danger'
+                    });
+                }
+            });
+
+            setAttendanceMap(map);
+            setHistory(historyList.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5));
+
+            const total = present + absent;
+            setStats({
+                total,
+                present,
+                absent,
+                rate: total > 0 ? Math.round((present / total) * 100) + '%' : '0%'
+            });
+
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const history = [
-        { date: 'Nov 28', status: 'Present', time: '10:00 AM - 11:30 AM', color: 'success' },
-        { date: 'Nov 27', status: 'Present', time: '10:00 AM - 11:30 AM', color: 'success' },
-        { date: 'Nov 26', status: 'Present', time: '10:00 AM - 11:30 AM', color: 'success' },
-        { date: 'Nov 25', status: 'Present', time: '10:00 AM - 11:30 AM', color: 'success' },
-        { date: 'Nov 21', status: 'Late', time: '10:15 AM - 11:30 AM', color: 'warning' },
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
     ];
 
-    const getDayStatus = (day) => attendanceData[day];
+    const changeMonth = (offset) => {
+        const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
+        setCurrentDate(new Date(newDate));
+    };
+
+    const getDayStatus = (day) => attendanceMap[day];
 
     return (
         <div className="container-fluid p-0">
@@ -47,15 +120,17 @@ const Attendance = () => {
                         value={selectedChild}
                         onChange={(e) => setSelectedChild(e.target.value)}
                     >
-                        {children.map(c => <option key={c} value={c}>{c}</option>)}
+                        {children.map(c => (
+                            <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                        ))}
                     </select>
                 </div>
 
                 <div className="d-flex align-items-center gap-3">
-                    <h5 className="m-0 fw-bold">November 2024</h5>
+                    <h5 className="m-0 fw-bold">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h5>
                     <div className="btn-group">
-                        <button className="btn btn-light btn-sm rounded-circle"><i className="bi bi-chevron-left"></i></button>
-                        <button className="btn btn-light btn-sm rounded-circle ms-1"><i className="bi bi-chevron-right"></i></button>
+                        <button className="btn btn-light btn-sm rounded-circle" onClick={() => changeMonth(-1)}><i className="bi bi-chevron-left"></i></button>
+                        <button className="btn btn-light btn-sm rounded-circle ms-1" onClick={() => changeMonth(1)}><i className="bi bi-chevron-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -75,7 +150,7 @@ const Attendance = () => {
                         </div>
 
                         <div className="d-flex flex-wrap">
-                            {[...Array(startDayOffset)].map((_, i) => (
+                            {[...Array(uiStartDayOffset)].map((_, i) => (
                                 <div key={`empty-${i}`} style={{ width: '14%', height: '80px' }}></div>
                             ))}
                             {[...Array(daysInMonth)].map((_, i) => {
@@ -86,23 +161,17 @@ const Attendance = () => {
 
                                 if (status === 'P') { bgClass = 'bg-success-subtle text-success'; text = 'P'; }
                                 if (status === 'A') { bgClass = 'bg-danger-subtle text-danger'; text = 'A'; }
-                                if (status === 'L') { bgClass = 'bg-warning-subtle text-warning'; text = 'L'; }
-
-                                // Weekends
-                                const isWeekend = (startDayOffset + i) % 7 >= 5;
-                                if (!status && isWeekend) { bgClass = 'bg-white text-muted'; text = day; } // Just date for weekends if no status
 
                                 return (
                                     <div key={day} style={{ width: '14%', height: '90px' }} className="p-1">
-                                        <div className="d-flex flex-column align-items-center justify-content-between py-2 rounded-3 h-100"
-                                        >
+                                        <div className="d-flex flex-column align-items-center justify-content-between py-2 rounded-3 h-100">
                                             <span className={`small fw-bold ${!status ? 'text-dark' : 'text-secondary'}`}>{day}</span>
-                                            {status || !isWeekend ? (
+                                            {status ? (
                                                 <div
                                                     className={`d-flex align-items-center justify-content-center rounded-circle fw-bold ${bgClass}`}
                                                     style={{ width: '35px', height: '35px', fontSize: '14px' }}
                                                 >
-                                                    {text !== '-' ? text : ''}
+                                                    {text}
                                                 </div>
                                             ) : null}
                                         </div>
@@ -131,7 +200,7 @@ const Attendance = () => {
                         </div>
                         <div className="col-6">
                             <div className="card border-0 shadow-sm p-3 h-100" style={{ borderRadius: '12px' }}>
-                                <small className="text-secondary text-uppercase" style={{ fontSize: '0.75rem' }}>Absent/Late</small>
+                                <small className="text-secondary text-uppercase" style={{ fontSize: '0.75rem' }}>Absent</small>
                                 <h2 className="fw-bold my-2 text-danger">{stats.absent} <span className="fs-6 text-dark font-normal">days</span></h2>
                             </div>
                         </div>
@@ -147,22 +216,18 @@ const Attendance = () => {
                     <div className="card border-0 shadow-sm p-4" style={{ borderRadius: '12px' }}>
                         <h5 className="fw-bold mb-4">Recent Attendance History</h5>
                         <div className="d-flex justify-content-between text-secondaryx small fw-bold text-muted mb-3 px-2">
-                            <span style={{ width: '30%' }}>Date</span>
-                            <span style={{ width: '30%' }}>Status</span>
-                            <span className="text-end" style={{ width: '40%' }}>Time</span>
+                            <span style={{ width: '50%' }}>Date</span>
+                            <span style={{ width: '50%' }}>Status</span>
                         </div>
 
                         <div className="d-flex flex-column gap-3">
-                            {history.map((record, idx) => (
+                            {history.length === 0 ? <p className="text-muted text-center">No records.</p> : history.map((record, idx) => (
                                 <div key={idx} className="d-flex justify-content-between align-items-center px-2 py-2 rounded-2 hover-bg-light">
-                                    <span className="fw-bold text-dark" style={{ width: '30%' }}>{record.date}</span>
-                                    <div style={{ width: '30%' }}>
+                                    <span className="fw-bold text-dark" style={{ width: '50%' }}>{record.date}</span>
+                                    <div style={{ width: '50%' }}>
                                         <span className={`badge bg-${record.color}-subtle text-${record.color} border border-${record.color}-subtle rounded-pill px-3`}>
                                             {record.status}
                                         </span>
-                                    </div>
-                                    <div className="text-end text-secondary small" style={{ width: '40%' }}>
-                                        <i className="bi bi-clock me-1"></i> {record.time}
                                     </div>
                                 </div>
                             ))}

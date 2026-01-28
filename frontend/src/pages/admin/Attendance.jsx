@@ -39,17 +39,19 @@ const Attendance = () => {
     const handleBatchSelect = async (batch) => {
         setSelectedBatch(batch);
         try {
-            // Need to fetch students in this batch. 
-            // In my model, it's BatchEnrollment. Let's assume a students list is available or fetch it.
-            const response = await axios.get(`/batches/${batch.id}/`);
-            // Assuming the serializer returns enrollments or we fetch them separately
-            // For now, let's fetch all students to simplify or assume endpoint exists
-            const stuResponse = await axios.get('/students/?status=ACTIVE');
-            setBatchStudents(stuResponse.data);
+            // Fetch enrollments for this batch to get only enrolled students
+            const stuResponse = await axios.get(`/enrollments/?batch=${batch.id}`);
+            // Map enrollments to student structure expected by the UI
+            const students = stuResponse.data.map(enrollment => ({
+                id: enrollment.student,
+                first_name: enrollment.student_name, // Serializer provides full name
+                last_name: '' // Already included in student_name
+            }));
+            setBatchStudents(students);
 
             // Initialize attendance as PRESENT
             const initial = {};
-            stuResponse.data.forEach(s => initial[s.id] = 'PRESENT');
+            students.forEach(s => initial[s.id] = 'PRESENT');
             setAttendanceData(initial);
 
             setShowRecordModal(true);

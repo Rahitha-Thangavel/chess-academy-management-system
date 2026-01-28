@@ -10,6 +10,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['batch', 'student', 'attendance_date', 'status']
 
     def get_queryset(self):
         user = self.request.user

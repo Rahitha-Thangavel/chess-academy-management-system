@@ -58,19 +58,47 @@ class Payment(models.Model):
         return f"{prefix}{new_seq:03d}"
 
 class Salary(models.Model):
+    class SalaryStatus(models.TextChoices):
+        PENDING = 'PENDING', _('Pending')
+        PROCESSING = 'PROCESSING', _('Processing')
+        PAID = 'PAID', _('Paid')
+
+    salary_code = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
     coach_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='salaries'
     )
     payment_period = models.CharField(max_length=50) # e.g. "November 2024"
+    batch = models.ForeignKey('batches.Batch', on_delete=models.SET_NULL, null=True, related_name='salaries')
+    
     total_hours = models.DecimalField(max_digits=6, decimal_places=2)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
+    gross_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    deductions = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
+    net_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
-    # Derived field logic could go here or in a property, but usually good to store the finalized amount too if needed.
-    # User schema didn't ask for amount, just these fields. I'll stick to schema.
+    payment_date = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=SalaryStatus.choices,
+        default=SalaryStatus.PENDING
+    )
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='processed_salaries'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.salary_code:
+            # Simple unique code generator logic could go here
+            import uuid
+            self.salary_code = f"SAL-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.coach_user} - {self.payment_period}"

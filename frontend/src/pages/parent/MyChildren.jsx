@@ -55,6 +55,48 @@ const MyChildren = () => {
         }
     };
 
+    const [showEnrollModal, setShowEnrollModal] = useState(false);
+    const [availableBatches, setAvailableBatches] = useState([]);
+
+    const handleEnrollClick = (child) => {
+        // Mock enrollment check logic or use data from API
+        // If child.enrollments is available
+        const currentEnrollments = child.enrollments ? child.enrollments.length : 0;
+        if (currentEnrollments >= 2) {
+            alert("Maximum 2 batches allowed per student.");
+            return;
+        }
+
+        setSelectedChild(child);
+        fetchAvailableBatches();
+        setShowEnrollModal(true);
+    };
+
+    const fetchAvailableBatches = async () => {
+        try {
+            const res = await axios.get('/batches/available_for_registration/');
+            setAvailableBatches(res.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const submitEnrollment = async (batchId) => {
+        try {
+            if (!selectedChild) return;
+            await axios.post('/enrollments/', {
+                student: selectedChild.id,
+                batch: batchId
+            });
+            setShowEnrollModal(false);
+            fetchChildren(); // Refresh to show new enrollment status
+            alert("Enrolled successfully!");
+        } catch (err) {
+            console.error(err);
+            alert("Enrollment failed: " + (err.response?.data?.error || err.message));
+        }
+    };
+
     if (loading) return <div className="text-center p-5">Loading...</div>;
     if (error) return <div className="alert alert-danger m-4">{error}</div>;
 
@@ -94,24 +136,29 @@ const MyChildren = () => {
                                 <h5 className="fw-bold mb-1">{child.first_name} {child.last_name}</h5>
                                 <p className="text-muted mb-4">{child.grade_level || 'N/A'}</p>
 
-                                <div className="d-flex flex-column gap-3 mb-4">
-                                    <div className="d-flex align-items-center gap-3 text-secondary">
-                                        <i className="bi bi-building"></i>
-                                        <span>School: {child.school || 'N/A'}</span>
-                                    </div>
-                                    <div className="d-flex align-items-center gap-3 text-secondary">
-                                        <i className="bi bi-calendar"></i>
-                                        <span>Joined: {new Date(child.enrollment_date).toLocaleDateString()}</span>
-                                    </div>
+                                <div className="mb-3">
+                                    <small className="text-muted d-block fw-bold mb-1">Batches ({child.enrollments ? child.enrollments.length : 0})</small>
+                                    {child.enrollments && child.enrollments.map(e => (
+                                        <span key={e.id} className="badge bg-light text-dark border me-1 mb-1">{e.batch_name}</span>
+                                    ))}
                                 </div>
 
-                                <button
-                                    className="btn text-white w-100 py-2 rounded-2"
-                                    style={{ backgroundColor: '#6c9343' }}
-                                    onClick={() => handleViewDetails(child)}
-                                >
-                                    View Details
-                                </button>
+                                <div className="d-flex flex-column gap-2 mt-auto">
+                                    <button
+                                        className="btn btn-outline-success w-100 py-2 rounded-2"
+                                        onClick={() => handleEnrollClick(child)}
+                                        disabled={child.status !== 'ACTIVE'}
+                                    >
+                                        Enroll in Batch
+                                    </button>
+                                    <button
+                                        className="btn text-white w-100 py-2 rounded-2"
+                                        style={{ backgroundColor: '#6c9343' }}
+                                        onClick={() => handleViewDetails(child)}
+                                    >
+                                        View Details
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -156,6 +203,39 @@ const MyChildren = () => {
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
                 </Modal.Footer>
+            </Modal>
+
+            {/* Enrollment Modal */}
+            <Modal show={showEnrollModal} onHide={() => setShowEnrollModal(false)} size="lg" centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Select a Batch for {selectedChild?.first_name}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <div className="list-group">
+                        {availableBatches.length === 0 && <p className="text-center text-muted">No available batches.</p>}
+                        {availableBatches.map(batch => {
+                            const isEnrolled = selectedChild?.enrollments?.some(e => e.batch === batch.id); // Fixed: e.batch is the ID
+                            return (
+                                <button
+                                    key={batch.id}
+                                    className={`list-group-item list-group-item-action d-flex justify-content-between align-items-center ${isEnrolled ? 'bg-light text-muted' : ''}`}
+                                    onClick={() => !isEnrolled && submitEnrollment(batch.id)}
+                                    disabled={isEnrolled}
+                                >
+                                    <div>
+                                        <h6 className="mb-1 fw-bold">{batch.batch_name}</h6>
+                                        <small className="text-muted">{batch.schedule_day} {batch.start_time} - {batch.end_time} | Coach: {batch.coach_name || 'TBA'}</small>
+                                    </div>
+                                    {isEnrolled ? (
+                                        <span className="badge bg-secondary">Enrolled</span>
+                                    ) : (
+                                        <span className="badge bg-primary">Select</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </Modal.Body>
             </Modal>
         </div>
     );

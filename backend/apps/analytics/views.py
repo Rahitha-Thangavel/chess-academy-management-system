@@ -6,10 +6,10 @@ from apps.students.models import Student
 from apps.attendance.models import Attendance
 from apps.payments.models import Payment, Salary
 from apps.tournaments.models import Tournament, TournamentRegistration
-from .permissions import IsAdminOrCoach
+from .permissions import IsStaffOrCoach
 
 class ReportsViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrCoach]
+    permission_classes = [permissions.IsAuthenticated, IsStaffOrCoach]
 
     @action(detail=False, methods=['get'])
     def student_attendance(self, request):
@@ -40,6 +40,53 @@ class ReportsViewSet(viewsets.ViewSet):
         return Response(tournaments)
 
     @action(detail=False, methods=['get'])
+    def daily_summary(self, request):
+        """Attendance summary for today's classes."""
+        from apps.batches.models import Batch
+        from apps.attendance.models import Attendance
+        import datetime
+        from django.utils import timezone
+        
+        today = timezone.now().date()
+        all_param = request.query_params.get('all', 'false').lower() == 'true'
+        
+        if all_param:
+            batches = Batch.objects.all().select_related('coach_user')
+        else:
+            today_name = today.strftime('%A')
+            day_map = {
+                'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 
+                'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT', 'Sunday': 'SUN'
+            }
+            today_code = day_map.get(today_name, 'MON')
+            batches = Batch.objects.filter(schedule_day=today_code).select_related('coach_user')
+            
+        data = []
+        for b in batches:
+            total_students = b.enrollments.count()
+            attendance_records = Attendance.objects.filter(batch=b, date=today)
+            present_count = attendance_records.filter(status='PRESENT').count()
+            absent_count = attendance_records.filter(status='ABSENT').count()
+            
+            status_text = f"{present_count}/{total_students} Present"
+            if absent_count > 0:
+                status_text += f" | {absent_count} Absent"
+            
+            color = 'success' if present_count >= total_students * 0.8 else 'warning'
+            if present_count == 0 and total_students > 0:
+                color = 'danger'
+
+            data.append({
+                'batch_id': b.id,
+                'class': b.batch_name,
+                'coach': b.coach_user.get_full_name() if b.coach_user else "No Coach",
+                'schedule': b.get_schedule_day_display(),
+                'status': status_text,
+                'color': color
+            })
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
     def dashboard_stats(self, request):
         """Get summary stats for dashboard badges."""
         import logging
@@ -49,6 +96,10 @@ class ReportsViewSet(viewsets.ViewSet):
             from apps.batches.models import RescheduleRequest, Batch
             from apps.users.models import User
             import datetime
+            from django.utils import timezone
+            
+            now = timezone.now()
+            today = now.date()
             
             # 1. Counts
             total_students = Student.objects.filter(status='ACTIVE').count()
@@ -59,18 +110,22 @@ class ReportsViewSet(viewsets.ViewSet):
             pending_reschedules = RescheduleRequest.objects.filter(status='PENDING').count()
             total_pending_actions = pending_students + pending_reschedules
             
-            # 3. Payments - Wrapped in try/except to prevent dashboard crash
-            payments_due = 0
-            monthly_revenue = 0
-            try:
-                monthly_revenue = Payment.objects.filter(
-                    payment_date__month=datetime.date.today().month
-                ).aggregate(total=Sum('amount'))['total'] or 0
-            except Exception as pay_err:
-                logger.error(f"Error calculating revenue: {pay_err}")
+            # Notifications (Real)
+            from apps.notifications.models import Notification
+            notifications_count = Notification.objects.filter(user=request.user, is_read=False).count()
             
-            # 4. Today's Schedule
-            today_name = datetime.date.today().strftime('%A')
+            # 3. Payments
+            monthly_revenue = Payment.objects.filter(
+                payment_date__year=today.year,
+                payment_date__month=today.month
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            
+            today_payments = Payment.objects.filter(
+                payment_date=today
+            ).aggregate(total=Sum('amount'))['total'] or 0
+
+            # 4. Schedule
+            today_name = today.strftime('%A')
             day_map = {
                 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 
                 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT', 'Sunday': 'SUN'
@@ -80,6 +135,22 @@ class ReportsViewSet(viewsets.ViewSet):
             todays_batches = Batch.objects.filter(schedule_day=today_code).select_related('coach_user')
             todays_classes_count = todays_batches.count()
             
+            # Expected payments (This is complex, let's simplify for now: active students who haven't paid this month)
+            paid_this_month = Payment.objects.filter(
+                payment_date__year=today.year,
+                payment_date__month=today.month,
+                payment_type='MONTHLY'
+            ).values_list('student_id', flat=True)
+            unpaid_count = Student.objects.filter(status='ACTIVE').exclude(id__in=paid_this_month).count()
+            
+            # Registration list (Recent Activity)
+            recent_registrations = Student.objects.order_by('-created_at')[:5]
+            reg_data = [{
+                'name': f"{s.first_name} {s.last_name}",
+                'detail': f"{s.grade_level} | {s.created_at.strftime('%b %d')}",
+                'type': 'registration'
+            } for s in recent_registrations]
+
             schedule_data = []
             for batch in todays_batches:
                 schedule_data.append({
@@ -95,12 +166,18 @@ class ReportsViewSet(viewsets.ViewSet):
                 'pending_actions': total_pending_actions,
                 'pending_students': pending_students,
                 'pending_reschedules': pending_reschedules,
-                'notifications': 8, 
+                'notifications': notifications_count, 
                 'todays_classes': todays_classes_count,
-                'payments_due': payments_due,
                 'monthly_revenue': monthly_revenue,
-                'todays_schedule': schedule_data
+                'today_payments': today_payments,
+                'unpaid_students_count': unpaid_count,
+                'todays_schedule': schedule_data,
+                'recent_registrations': reg_data,
+                'upcoming_tournaments_count': Tournament.objects.filter(tournament_date__gte=today).count()
             })
+        except Exception as e:
+            logger.error(f"Error in dashboard_stats: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"Error in dashboard_stats: {str(e)}", exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

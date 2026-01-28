@@ -70,8 +70,6 @@ class PaymentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def dues(self, request):
         """[R18] Track pending/overdue payments."""
-        # This is a simplified logic: find students who haven't paid for the current month
-        # Real logic would involve a 'Billing' model or checking monthly records.
         now = timezone.now()
         paid_students = Payment.objects.filter(
             payment_type='MONTHLY',
@@ -84,11 +82,17 @@ class PaymentViewSet(viewsets.ModelViewSet):
         # Format response
         data = []
         for s in unpaid_students:
+            parent_name = "N/A"
+            parent_phone = "N/A"
+            if s.parent_user:
+                parent_name = f"{s.parent_user.first_name} {s.parent_user.last_name}"
+                parent_phone = s.parent_user.phone
+            
             data.append({
                 'id': s.id,
                 'name': f"{s.first_name} {s.last_name}",
-                'parent': f"{s.parent_user.first_name} {s.parent_user.last_name}",
-                'parent_phone': s.parent_user.phone
+                'parent': parent_name,
+                'parent_phone': parent_phone
             })
         
         return Response(data)

@@ -17,9 +17,19 @@ const Tournaments = () => {
     const fetchTournaments = async () => {
         try {
             const response = await axios.get('/tournaments/');
-            setTournaments(response.data);
+            // Handle both array (no pagination) and object (pagination) responses
+            const data = response.data;
+            if (Array.isArray(data)) {
+                setTournaments(data);
+            } else if (data && Array.isArray(data.results)) {
+                setTournaments(data.results);
+            } else {
+                console.error("Unexpected tournaments data format:", data);
+                setTournaments([]);
+            }
         } catch (error) {
             console.error('Error fetching tournaments:', error);
+            setTournaments([]);
         }
     };
 

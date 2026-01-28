@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'apps.attendance',
     'apps.payments',
     'apps.tournaments',
-    # 'apps.analytics',   # Uncomment when ready
+    'apps.notifications',
+    'apps.analytics',
 ]
 
 MIDDLEWARE = [

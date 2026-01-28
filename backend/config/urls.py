@@ -19,13 +19,13 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('apps.users.urls')),
-    # Comment out other apps until we create proper views
     path('api/', include('apps.students.urls')),
     path('api/', include('apps.batches.urls')),
     path('api/', include('apps.attendance.urls')),
     path('api/', include('apps.payments.urls')),
     path('api/analytics/', include('apps.analytics.urls')),
-    path('api/', include('apps.tournaments.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
+    path('api/tournaments/', include('apps.tournaments.urls')),
     
     # API Documentation
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='swagger-ui'),

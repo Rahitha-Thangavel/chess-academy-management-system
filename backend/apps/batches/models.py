@@ -25,9 +25,13 @@ class Batch(models.Model):
     end_time = models.TimeField()
     coach_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='batches_coached'
+        on_delete=models.SET_NULL, # Changed from CASCADE to SET_NULL to preserve batch if coach is deleted
+        related_name='batches_coached',
+        null=True, # Allow no coach initially
+        blank=True
     )
+    
+    max_students = models.PositiveIntegerField(default=50)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -58,10 +62,38 @@ class Batch(models.Model):
             
         return f"{prefix}{new_seq:03d}"
 
+class CoachBatchApplication(models.Model):
+    class ApplicationStatus(models.TextChoices):
+        PENDING = 'PENDING', _('Pending')
+        APPROVED = 'APPROVED', _('Approved')
+        REJECTED = 'REJECTED', _('Rejected')
+
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='coach_applications')
+    coach = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='batch_applications'
+    )
+    application_date = models.DateTimeField(auto_now_add=True)
+    application_message = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=10,
+        choices=ApplicationStatus.choices,
+        default=ApplicationStatus.PENDING
+    )
+    admin_notes = models.TextField(blank=True)
+    decision_date = models.DateField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ('batch', 'coach')
+
+    def __str__(self):
+        return f"{self.coach} -> {self.batch} ({self.status})"
+
 class BatchEnrollment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='enrollments')
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='enrollments')
-    enrollment_date = models.DateField()
+    enrollment_date = models.DateField(auto_now_add=True)
     
     class Meta:
         unique_together = ('student', 'batch')

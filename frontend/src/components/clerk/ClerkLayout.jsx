@@ -2,13 +2,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import axios from '../../api/axiosInstance';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ClerkLayout = ({ children }) => {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
     const profileMenuRef = useRef(null);
+
+    useEffect(() => {
+        fetchUnreadCount();
+        const interval = setInterval(fetchUnreadCount, 30000); // Check every 30s
+        return () => clearInterval(interval);
+    }, []);
+
+    const fetchUnreadCount = async () => {
+        try {
+            const response = await axios.get('/notifications/unread_count/');
+            setUnreadCount(response.data.count);
+        } catch (error) {
+            console.error('Error fetching unread count:', error);
+        }
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -113,9 +130,11 @@ const ClerkLayout = ({ children }) => {
                     <div className="d-flex align-items-center gap-4">
                         <Link to="/clerk/notifications" className="text-dark bg-transparent border-0 position-relative">
                             <i className="bi bi-bell fs-5 text-secondary"></i>
-                            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style={{ fontSize: '0.6rem' }}>
-                                5
-                            </span>
+                            {unreadCount > 0 && (
+                                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style={{ fontSize: '0.6rem' }}>
+                                    {unreadCount}
+                                </span>
+                            )}
                         </Link>
 
                         <div className="position-relative" ref={profileMenuRef}>

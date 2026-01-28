@@ -1,25 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import axios from '../../api/axiosInstance';
 
 const MarkAttendance = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { batchId, batchName } = location.state || {};
+
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [seconds, setSeconds] = useState(0);
     const [attendanceMarked, setAttendanceMarked] = useState(false);
     const [startTime, setStartTime] = useState(null);
     const [endTime, setEndTime] = useState(null);
+    const [loading, setLoading] = useState(true);
 
+    useEffect(() => {
+        if (!batchId) {
+            alert("No batch selected.");
+            navigate('/coach/dashboard');
+            return;
+        }
+        checkStatus();
+    }, [batchId]);
+
+    // Timer effect
     useEffect(() => {
         let interval = null;
         if (isTimerRunning) {
             interval = setInterval(() => {
-                setSeconds(seconds => seconds + 1);
+                setSeconds(prev => prev + 1);
             }, 1000);
-        } else if (!isTimerRunning && seconds !== 0) {
+        } else {
             clearInterval(interval);
         }
         return () => clearInterval(interval);
-    }, [isTimerRunning, seconds]);
+    }, [isTimerRunning]);
+
+    const checkStatus = async () => {
+        try {
+            const res = await axios.get('/coaches/');
+            const today = new Date().toISOString().split('T')[0];
+            const record = res.data.find(r => r.date === today && r.batch === batchId);
+
+            if (record) {
+                if (record.clock_in_time && !record.clock_out_time) {
+                    setIsTimerRunning(true);
+                    setStartTime(new Date(record.clock_in_time).toLocaleTimeString());
+                    // Calculate elapsed seconds
+                    const start = new Date(record.clock_in_time);
+                    const now = new Date();
+                    const diff = Math.floor((now - start) / 1000);
+                    setSeconds(diff > 0 ? diff : 0);
+                } else if (record.clock_out_time) {
+                    setIsTimerRunning(false);
+                    setAttendanceMarked(true);
+                    setStartTime(new Date(record.clock_in_time).toLocaleTimeString());
+                    setEndTime(new Date(record.clock_out_time).toLocaleTimeString());
+
+                    // Fixed duration calc
+                    const start = new Date(record.clock_in_time);
+                    const end = new Date(record.clock_out_time);
+                    const diff = Math.floor((end - start) / 1000);
+                    setSeconds(diff);
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const formatTime = (totalSeconds) => {
         const hours = Math.floor(totalSeconds / 3600);
@@ -28,17 +78,25 @@ const MarkAttendance = () => {
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handleStartClass = () => {
-        setIsTimerRunning(true);
-        setStartTime(new Date().toLocaleTimeString());
-        setAttendanceMarked(false);
+    const handleStartClass = async () => {
+        try {
+            await axios.post('/coaches/clock_in/', { batch_id: batchId });
+            checkStatus(); // Refresh to sync time
+        } catch (err) {
+            alert("Failed to start class");
+        }
     };
 
-    const handleEndClass = () => {
-        setIsTimerRunning(false);
-        setEndTime(new Date().toLocaleTimeString());
-        setAttendanceMarked(true);
+    const handleEndClass = async () => {
+        try {
+            await axios.post('/coaches/clock_out/', { batch_id: batchId });
+            checkStatus();
+        } catch (err) {
+            alert("Failed to end class");
+        }
     };
+
+    if (loading) return <div className="p-5 text-center">Loading...</div>;
 
     return (
         <div className="container-fluid p-0">
@@ -46,7 +104,10 @@ const MarkAttendance = () => {
                 <button onClick={() => navigate(-1)} className="btn btn-light rounded-circle shadow-sm" style={{ width: '40px', height: '40px' }}>
                     <i className="bi bi-arrow-left"></i>
                 </button>
-                <h3 className="fw-bold m-0">Mark Coach Attendance</h3>
+                <div>
+                    <h3 className="fw-bold m-0">Mark Attendance</h3>
+                    <small className="text-secondary">{batchName}</small>
+                </div>
             </div>
 
             <div className="row justify-content-center">
@@ -54,7 +115,7 @@ const MarkAttendance = () => {
                     <div className="card border-0 shadow-sm rounded-4 p-5 text-center">
                         <h5 className="text-secondary fw-bold mb-4">Class Session Timer</h5>
 
-                        <div className="display-1 fw-bold mb-5" style={{ color: '#6c9343', fontFamily: 'monospace' }}>
+                        <div className="display-1 fw-bold mb-5" style={{ color: isTimerRunning ? '#6c9343' : '#6c757d', fontFamily: 'monospace' }}>
                             {formatTime(seconds)}
                         </div>
 
@@ -79,20 +140,16 @@ const MarkAttendance = () => {
                                     <h5 className="alert-heading fw-bold"><i className="bi bi-check-circle-fill me-2"></i> Session Recorded!</h5>
                                     <hr />
                                     <div className="d-flex justify-content-between px-5">
-                                        <span>Start: <strong>{startTime}</strong></span>
-                                        <span>End: <strong>{endTime}</strong></span>
-                                        <span>Duration: <strong>{formatTime(seconds)}</strong></span>
+                                        <div>Start: <strong>{startTime}</strong></div>
+                                        <div>End: <strong>{endTime}</strong></div>
                                     </div>
+                                    <div className="mt-2">Duration: <strong>{formatTime(seconds)}</strong></div>
+
                                     <button
-                                        className="btn btn-sm btn-outline-success mt-3 fw-bold"
-                                        onClick={() => {
-                                            setSeconds(0);
-                                            setAttendanceMarked(false);
-                                            setStartTime(null);
-                                            setEndTime(null);
-                                        }}
+                                        className="btn btn-sm btn-secondary mt-3 fw-bold"
+                                        onClick={() => navigate('/coach/dashboard')}
                                     >
-                                        Start New Session
+                                        Back to Dashboard
                                     </button>
                                 </div>
                             )}

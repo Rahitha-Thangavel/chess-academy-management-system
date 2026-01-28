@@ -11,7 +11,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['status', 'grade_level', 'school']
+    filterset_fields = ['status', 'grade_level', 'school', 'parent_user']
     search_fields = ['first_name', 'last_name', 'school', 'parent_user__username', 'parent_user__first_name']
 
     def get_queryset(self):
@@ -59,6 +59,15 @@ class StudentViewSet(viewsets.ModelViewSet):
         student = self.get_object()
         student.status = Student.Status.ACTIVE
         student.save()
+        
+        # Trigger Notification
+        from apps.notifications.utils import create_notification
+        create_notification(
+            user=student.parent_user,
+            notification_type='SYSTEM',
+            title='Registration Approved',
+            message=f'Student registration for {student.first_name} {student.last_name} has been approved.'
+        )
         return Response({'status': 'approved'})
 
     @action(detail=True, methods=['post'])
@@ -68,4 +77,13 @@ class StudentViewSet(viewsets.ModelViewSet):
         student = self.get_object()
         student.status = Student.Status.REJECTED
         student.save()
+        
+        # Trigger Notification
+        from apps.notifications.utils import create_notification
+        create_notification(
+            user=student.parent_user,
+            notification_type='SYSTEM',
+            title='Registration Rejected',
+            message=f'Student registration for {student.first_name} {student.last_name} has been rejected.'
+        )
         return Response({'status': 'rejected'})

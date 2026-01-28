@@ -1,58 +1,89 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from '../../api/axiosInstance';
 
 const Payments = () => {
     const navigate = useNavigate();
-    // Mock Data
-    const fees = [
-        {
-            id: 1,
-            name: 'Arjun',
-            monthlyFee: 'LKR 2,000',
-            discount: '-LKR 400 (20% for 3 children)',
-            totalDue: 'LKR 1,600',
-            dueDate: 'Dec 5, 2024',
-            status: 'Pending',
-            cardColor: 'border-warning'
-        },
-        {
-            id: 2,
-            name: 'Priya',
-            monthlyFee: 'LKR 2,000',
-            discount: '-LKR 400 (20% for 3 children)',
-            totalDue: 'LKR 1,600',
-            dueDate: 'Dec 5, 2024',
-            status: 'Pending',
-            cardColor: 'border-warning'
-        },
-        {
-            id: 3,
-            name: 'Gautam',
-            monthlyFee: 'LKR 2,000',
-            discount: '-LKR 400 (20% for 3 children)',
-            totalDue: 'LKR 1,600',
-            dueDate: 'Dec 5, 2024',
-            status: 'Pending',
-            cardColor: 'border-warning'
+    const [fees, setFees] = useState([]);
+    const [history, setHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        try {
+            // 1. Get Children
+            const childrenRes = await axios.get('/students/my_children/');
+            const children = childrenRes.data;
+
+            // 2. Get Payments
+            const paymentsRes = await axios.get('/payments/');
+            const paymentHistory = paymentsRes.data;
+
+            setHistory(paymentHistory.map(p => ({
+                id: p.id,
+                date: p.payment_date,
+                student: children.find(c => c.id === p.student)?.first_name || p.student,
+                amount: `LKR ${p.amount}`,
+                method: p.payment_method,
+                status: 'Paid'
+            })));
+
+            // 3. Calculate Fees / Determine Status
+            const feeList = [];
+            const currentDate = new Date();
+            const currentMonth = currentDate.getMonth() + 1; // 1-12
+            const currentYear = currentDate.getFullYear();
+
+            for (const child of children) {
+                // Check if paid this month
+                const hasPaid = paymentHistory.some(p =>
+                    p.student === child.id &&
+                    new Date(p.payment_date).getMonth() + 1 === currentMonth &&
+                    new Date(p.payment_date).getFullYear() === currentYear &&
+                    p.payment_type === 'MONTHLY'
+                );
+
+                if (!hasPaid) {
+                    // Fetch calculated fee
+                    const feeRes = await axios.get(`/payments/calculate_fee/`, {
+                        params: { student_id: child.id, month: currentMonth, year: currentYear }
+                    });
+
+                    const feeData = feeRes.data;
+                    feeList.push({
+                        id: child.id,
+                        name: child.first_name,
+                        monthlyFee: `LKR ${feeData.base_fee}`,
+                        discount: feeData.sibling_count >= 2 ? '10% Siblings' : 'None',
+                        totalDue: `LKR ${feeData.calculated_fee}`,
+                        dueDate: `5th ${new Date().toLocaleString('default', { month: 'short' })}`,
+                        status: 'Pending'
+                    });
+                } else {
+                    // Start of Paid Logic
+                    feeList.push({
+                        id: child.id,
+                        name: child.first_name,
+                        monthlyFee: '-',
+                        discount: '-',
+                        totalDue: '-',
+                        dueDate: '-',
+                        status: 'Paid'
+                    });
+                }
+            }
+
+            setFees(feeList);
+
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
         }
-    ];
-
-    const history = [
-        { date: '2024-11-05', student: 'Arjun', amount: 'LKR 1,600', method: 'Card', status: 'Paid' },
-        { date: '2024-10-05', student: 'Arjun', amount: 'LKR 1,600', method: 'Transfer', status: 'Paid' },
-        { date: '2024-09-05', student: 'Arjun', amount: 'LKR 2,000', method: 'Card', status: 'Paid' },
-        { date: '2024-08-05', student: 'Arjun', amount: 'LKR 2,000', method: 'Cash', status: 'Paid' },
-        { date: '2024-11-05', student: 'Priya', amount: 'LKR 1,600', method: 'Card', status: 'Paid' },
-        { date: '2024-10-05', student: 'Priya', amount: 'LKR 1,600', method: 'Transfer', status: 'Paid' },
-        { date: '2024-11-05', student: 'Gautam', amount: 'LKR 1,600', method: 'Card', status: 'Paid' },
-        { date: '2024-10-05', student: 'Gautam', amount: 'LKR 1,600', method: 'Transfer', status: 'Paid' },
-    ];
-
-    const upcoming = [
-        { date: 'Dec 5, 2024', student: 'Arjun', amount: 'LKR 1,600' },
-        { date: 'Dec 5, 2024', student: 'Priya', amount: 'LKR 1,600' },
-        { date: 'Dec 5, 2024', student: 'Gautam', amount: 'LKR 1,600' },
-    ];
+    };
 
     return (
         <div className="container-fluid p-0">
@@ -62,44 +93,56 @@ const Payments = () => {
 
             {/* Fee Cards */}
             <div className="row g-4 mb-5">
-                {fees.map((fee) => {
-                    const badgeClass = fee.status === 'Pending' ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle';
+                {fees.length === 0 ? <div className="col-12"><p className="text-muted">No fee records found.</p></div> : fees.map((fee) => {
+                    const isPaid = fee.status === 'Paid';
+                    const badgeClass = !isPaid ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle';
                     return (
                         <div key={fee.id} className="col-lg-4 col-md-6">
                             <div className="card border-0 shadow-sm p-4 h-100" style={{ borderRadius: '12px' }}>
                                 <div className="d-flex justify-content-between align-items-center mb-4">
                                     <h5 className="fw-bold m-0">{fee.name}</h5>
                                     <span className={`badge ${badgeClass} rounded-pill px-3 py-2`}>
-                                        {fee.status === 'Pending' ? <i className="bi bi-exclamation-triangle-fill me-1"></i> : <i className="bi bi-check-circle-fill me-1"></i>} {fee.status}
+                                        {!isPaid && <i className="bi bi-exclamation-triangle-fill me-1"></i>}
+                                        {isPaid && <i className="bi bi-check-circle-fill me-1"></i>}
+                                        {fee.status}
                                     </span>
                                 </div>
 
-                                <div className="d-flex justify-content-between mb-2">
-                                    <span className="text-secondary small fw-bold">Monthly Fee:</span>
-                                    <span className="fw-bold">{fee.monthlyFee}</span>
-                                </div>
-                                <div className="d-flex justify-content-between mb-3 text-success">
-                                    <span className="small fw-bold">Sibling<br />Discount:</span>
-                                    <span className="small fw-bold text-end" style={{ maxWidth: '100px' }}>{fee.discount}</span>
-                                </div>
+                                {!isPaid && (
+                                    <>
+                                        <div className="d-flex justify-content-between mb-2">
+                                            <span className="text-secondary small fw-bold">Monthly Fee:</span>
+                                            <span className="fw-bold">{fee.monthlyFee}</span>
+                                        </div>
+                                        <div className="d-flex justify-content-between mb-3 text-success">
+                                            <span className="small fw-bold">Discount:</span>
+                                            <span className="small fw-bold text-end">{fee.discount}</span>
+                                        </div>
 
-                                <hr className="my-3" />
+                                        <hr className="my-3" />
 
-                                <div className="d-flex justify-content-between align-items-center mb-1">
-                                    <span className="fw-bold text-dark">Total Due:</span>
-                                    <span className="fw-bold h5 m-0">{fee.totalDue}</span>
-                                </div>
+                                        <div className="d-flex justify-content-between align-items-center mb-1">
+                                            <span className="fw-bold text-dark">Total Due:</span>
+                                            <span className="fw-bold h5 m-0">{fee.totalDue}</span>
+                                        </div>
+                                    </>
+                                )}
+
                                 <div className="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
-                                    <div>
-                                        <small className="text-secondary fw-bold d-block">Due Date</small>
-                                        <span className="text-secondary small">{fee.dueDate}</span>
-                                    </div>
+                                    {!isPaid ? (
+                                        <div>
+                                            <small className="text-secondary fw-bold d-block">Due Date</small>
+                                            <span className="text-secondary small">{fee.dueDate}</span>
+                                        </div>
+                                    ) : <div><small className="text-success fw-bold">Payment Complete</small></div>}
+
                                     <button
-                                        className={`btn fw-bold px-4 ${fee.status === 'Pending' ? 'btn-success text-white' : 'btn-light text-secondary disabled'}`}
-                                        style={{ backgroundColor: fee.status === 'Pending' ? '#6c9343' : '' }}
-                                        onClick={() => fee.status === 'Pending' && navigate(`/parent/payment/checkout/${fee.id}`)}
+                                        className={`btn fw-bold px-4 ${!isPaid ? 'btn-success text-white' : 'btn-light text-secondary disabled'}`}
+                                        style={{ backgroundColor: !isPaid ? '#6c9343' : '' }}
+                                        onClick={() => !isPaid && navigate(`/parent/payment/checkout/${fee.id}`)}
+                                        disabled={isPaid}
                                     >
-                                        {fee.status === 'Pending' ? 'Pay Now' : 'Paid'}
+                                        {!isPaid ? 'Pay Now' : 'Paid'}
                                     </button>
                                 </div>
                             </div>
@@ -108,17 +151,11 @@ const Payments = () => {
                 })}
             </div>
 
-            {/* Payment History & Upcoming */}
+            {/* Payment History */}
             <div className="row g-4">
-                {/* History Table */}
                 <div className="col-12">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0">Payment History</h5>
-                        <div className="dropdown">
-                            <button className="btn btn-light btn-sm dropdown-toggle fw-bold text-secondary bg-white border" type="button">
-                                All Children
-                            </button>
-                        </div>
                     </div>
 
                     <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
@@ -134,15 +171,17 @@ const Payments = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {history.map((record, idx) => (
+                                    {history.length === 0 ? (
+                                        <tr><td colSpan="5" className="text-center py-3">No payment history found.</td></tr>
+                                    ) : history.map((record, idx) => (
                                         <tr key={idx}>
                                             <td className="ps-4 text-secondary small fw-bold">{record.date}</td>
                                             <td className="fw-bold small">{record.student}</td>
                                             <td className="text-secondary small fw-bold">{record.amount}</td>
-                                            <td className="text-secondary small"><i className="bi bi-credit-card me-1"></i> {record.method}</td>
+                                            <td className="text-secondary small">{record.method}</td>
                                             <td className="text-end pe-4">
                                                 <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">
-                                                    <i className="bi bi-check-circle-fill me-1"></i> {record.status}
+                                                    {record.status}
                                                 </span>
                                             </td>
                                         </tr>
@@ -150,22 +189,6 @@ const Payments = () => {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                </div>
-
-                {/* Upcoming Payments (Optional, can be separate or below) - Adding as separate section below table for now */}
-                <div className="col-12 mt-4">
-                    <h5 className="fw-bold mb-3">Upcoming Payments</h5>
-                    <div className="card border-0 shadow-sm p-4 rounded-3">
-                        {upcoming.map((item, idx) => (
-                            <div key={idx} className="d-flex justify-content-between align-items-center border-bottom py-3">
-                                <div>
-                                    <h6 className="fw-bold m-0 text-secondary small">{item.date} : <span className="text-dark h6 fw-bold">{item.amount}</span></h6>
-                                    <small className="text-muted">{item.student}</small>
-                                </div>
-                                <button className="btn btn-sm text-white px-3" style={{ backgroundColor: '#6c9343' }}>Pay</button>
-                            </div>
-                        ))}
                     </div>
                 </div>
             </div>

@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Auth Pages
 import Login from './pages/auth/Login';
@@ -23,6 +25,7 @@ import AdminTournaments from './pages/admin/Tournaments';
 import AdminSchedule from './pages/admin/Schedule';
 import AdminRescheduleRequests from './pages/admin/RescheduleRequests';
 import AdminReports from './pages/admin/Reports';
+import AdminBatchManagement from './pages/admin/batches/List';
 import CreateAdmin from './pages/admin/CreateAdmin';
 import ClerkDashboard from './pages/clerk/Dashboard';
 import ClerkLayout from './components/clerk/ClerkLayout';
@@ -36,6 +39,7 @@ import CoachClasses from './pages/coach/MyClasses';
 import CoachAttendance from './pages/coach/Attendance';
 import CoachSchedule from './pages/coach/Schedule';
 import CoachSalary from './pages/coach/Salary';
+import BatchApplications from './pages/coach/BatchApplications';
 import ParentDashboard from './pages/parent/Dashboard';
 import ParentLayout from './components/parent/ParentLayout';
 import MyChildren from './pages/parent/MyChildren';
@@ -68,6 +72,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <ToastContainer position="top-right" autoClose={3000} />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
@@ -193,6 +198,16 @@ function App() {
           />
 
           <Route
+            path="/admin/batches"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AdminBatchManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/create-admin"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -309,6 +324,16 @@ function App() {
               <ProtectedRoute allowedRoles={['COACH']}>
                 <CoachLayout>
                   <CoachSchedule />
+                </CoachLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coach/batch-applications"
+            element={
+              <ProtectedRoute allowedRoles={['COACH']}>
+                <CoachLayout>
+                  <BatchApplications />
                 </CoachLayout>
               </ProtectedRoute>
             }

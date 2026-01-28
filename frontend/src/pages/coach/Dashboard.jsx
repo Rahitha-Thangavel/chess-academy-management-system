@@ -7,16 +7,19 @@ const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [batches, setBatches] = useState([]);
+  const [availableBatchCount, setAvailableBatchCount] = useState(0);
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchBatches();
+    fetchAvailableBatches();
     fetchTodayAttendance();
   }, []);
 
   const fetchBatches = async () => {
     try {
+      // Fetches assigned batches (backend filters by current coach)
       const response = await axios.get('/batches/');
       setBatches(response.data);
     } catch (error) {
@@ -26,9 +29,19 @@ const Dashboard = () => {
     }
   };
 
+  const fetchAvailableBatches = async () => {
+    try {
+      // Fetches unassigned batches for opportunities
+      const response = await axios.get('/batches/unassigned/');
+      setAvailableBatchCount(response.data.length);
+    } catch (error) {
+      console.error('Error fetching available batches:', error);
+    }
+  };
+
   const fetchTodayAttendance = async () => {
     try {
-      const response = await axios.get('/coach-attendance/');
+      const response = await axios.get('/coaches/');
       // Find today's record for this coach
       const today = new Date().toISOString().split('T')[0];
       const record = response.data.find(r => r.date === today);
@@ -40,7 +53,7 @@ const Dashboard = () => {
 
   const handleClockIn = async (batchId) => {
     try {
-      await axios.post('/coach-attendance/clock_in/', { batch_id: batchId });
+      await axios.post('/coaches/clock_in/', { batch_id: batchId });
       alert('Clocked in successfully!');
       fetchTodayAttendance();
     } catch (error) {
@@ -50,7 +63,7 @@ const Dashboard = () => {
 
   const handleClockOut = async (batchId) => {
     try {
-      await axios.post('/coach-attendance/clock_out/', { batch_id: batchId });
+      await axios.post('/coaches/clock_out/', { batch_id: batchId });
       alert('Clocked out successfully!');
       fetchTodayAttendance();
     } catch (error) {
@@ -69,65 +82,94 @@ const Dashboard = () => {
             <h3 className="fw-bold m-0 text-success">{batches.length}</h3>
           </div>
         </div>
-        <div className="col-md-8">
-          <div className="card border-0 shadow-sm p-4 bg-light rounded-4">
+
+        {/* New Widget for Batch Opportunities */}
+        <div className="col-md-4">
+          <div className="card border-0 shadow-sm p-4 bg-primary-subtle rounded-4 h-100" style={{ cursor: 'pointer' }} onClick={() => navigate('/coach/batch-applications')}>
             <div className="d-flex justify-content-between align-items-center">
               <div>
-                <small className="text-secondary fw-bold d-block mb-1">Clock Session Status</small>
-                <h5 className={`fw-bold m-0 ${todayAttendance?.clock_in_time ? 'text-success' : 'text-danger'}`}>
-                  {todayAttendance?.clock_in_time ?
-                    `Clocked In at ${new Date(todayAttendance.clock_in_time).toLocaleTimeString()}` :
-                    'Not Clocked In'}
-                  {todayAttendance?.clock_out_time && ` - Clocked Out at ${new Date(todayAttendance.clock_out_time).toLocaleTimeString()}`}
-                </h5>
+                <small className="text-primary fw-bold d-block mb-1">Open Opportunities</small>
+                <h3 className="fw-bold m-0 text-primary">{availableBatchCount}</h3>
               </div>
+              <i className="bi bi-briefcase fs-1 text-primary opacity-25"></i>
             </div>
+            <small className="text-primary mt-2 d-block">Click to view & apply</small>
           </div>
         </div>
+
+        <div className="col-md-4">
+          <div className="card border-0 shadow-sm p-4 bg-light rounded-4 h-100">
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <small className="text-secondary fw-bold d-block mb-1">Total Hours</small>
+                <h3 className="fw-bold m-0 text-secondary">--</h3>
+              </div>
+              <i className="bi bi-clock-history fs-1 text-secondary opacity-25"></i>
+            </div>
+            <small className="text-secondary mt-2 d-block">View History</small>
+          </div>
+        </div>
+
       </div>
 
       <div className="row g-4">
-        <div className="col-lg-8">
-          <div className="card border-0 shadow-sm p-4 h-100 rounded-4">
-            <h5 className="fw-bold mb-4">Your Batch Sessions</h5>
-            <div className="d-flex flex-column gap-3">
-              {batches.length === 0 ? (
-                <div className="text-center text-muted border py-4 rounded bg-light">No batches assigned to you.</div>
-              ) : (
-                batches.map((batch) => (
-                  <div key={batch.id} className="p-3 border rounded-3 bg-light d-flex justify-content-between align-items-center">
-                    <div>
-                      <h6 className="fw-bold m-0">{batch.batch_name}</h6>
-                      <small className="text-secondary">{batch.schedule_day}s, {batch.start_time} - {batch.end_time}</small>
-                    </div>
-                    <div className="d-flex gap-2">
-                      {!todayAttendance?.clock_in_time && (
-                        <button className="btn btn-success btn-sm px-3" onClick={() => handleClockIn(batch.id)} style={{ backgroundColor: '#6c9343', border: 'none' }}>Clock In</button>
-                      )}
-                      {todayAttendance?.clock_in_time && !todayAttendance?.clock_out_time && (
-                        <button className="btn btn-danger btn-sm px-3" onClick={() => handleClockOut(batch.id)}>Clock Out</button>
-                      )}
-                      <button className="btn btn-primary btn-sm px-3" onClick={() => navigate('/coach/mark-attendance')}>Mark Student Attendance</button>
-                    </div>
-                  </div>
-                ))
-              )}
+        <div className="col-md-8">
+          <h5 className="fw-bold mb-3">Your Batch Sessions</h5>
+          {batches.map(batch => (
+            <div key={batch.id} className="card border-0 shadow-sm p-3 mb-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 className="fw-bold m-0">{batch.batch_name}</h6>
+                  <small className="text-muted">{batch.schedule_day}s, {batch.start_time} - {batch.end_time}</small>
+                </div>
+                <div className="d-flex gap-2">
+                  <button
+                    className="btn btn-success"
+                    onClick={() => navigate('/coach/mark-attendance', {
+                      state: {
+                        batchId: batch.id,
+                        batchName: batch.batch_name
+                      }
+                    })}
+                  >
+                    Mark My Attendance
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
+          {batches.length === 0 && <p className="text-muted">No active batches.</p>}
         </div>
 
-        <div className="col-lg-4">
-          <div className="card border-0 shadow-sm p-4 h-100 rounded-4 overflow-hidden">
-            <h5 className="fw-bold mb-4">Quick Links</h5>
-            <div className="list-group list-group-flush">
-              <button className="list-group-item list-group-item-action border-0 px-0 py-3 d-flex align-items-center gap-3" onClick={() => navigate('/coach/salary')}>
-                <i className="bi bi-wallet2 text-success h5 m-0"></i>
-                <span>View Salary Summaries</span>
-              </button>
-              <button className="list-group-item list-group-item-action border-0 px-0 py-3 d-flex align-items-center gap-3" onClick={() => navigate('/coach/schedule')}>
-                <i className="bi bi-calendar-check text-success h5 m-0"></i>
-                <span>Set Your Availability</span>
-              </button>
+        <div className="col-md-4">
+          <h5 className="fw-bold mb-3">Quick Actions</h5>
+          <div className="d-grid gap-3">
+            <div className="p-3 bg-white rounded-3 shadow-sm border" style={{ cursor: 'pointer' }} onClick={() => navigate('/coach/batch-applications')}>
+              <div className="d-flex align-items-center gap-3">
+                <i className="bi bi-briefcase text-success fs-5"></i>
+                <div>
+                  <h6 className="m-0 fw-bold">Apply for Batches</h6>
+                  <small className="text-muted">View available slots</small>
+                </div>
+              </div>
+            </div>
+            <div className="p-3 bg-white rounded-3 shadow-sm border" style={{ cursor: 'pointer' }} onClick={() => navigate('/coach/attendance')}>
+              <div className="d-flex align-items-center gap-3">
+                <i className="bi bi-clock-history text-success fs-5"></i>
+                <div>
+                  <h6 className="m-0 fw-bold">View Attendance</h6>
+                  <small className="text-muted">Check your history</small>
+                </div>
+              </div>
+            </div>
+            <div className="p-3 bg-white rounded-3 shadow-sm border" style={{ cursor: 'pointer' }} onClick={() => navigate('/coach/salary')}>
+              <div className="d-flex align-items-center gap-3">
+                <i className="bi bi-cash-coin text-warning fs-5"></i>
+                <div>
+                  <h6 className="m-0 fw-bold">Salary History</h6>
+                  <small className="text-muted">View payments</small>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -52,9 +52,13 @@ class TournamentRegistration(models.Model):
         PENDING = 'PENDING', _('Pending')
         PAID = 'PAID', _('Paid')
 
+    class AttendanceStatus(models.TextChoices):
+        PRESENT = 'PRESENT', _('Present')
+        ABSENT = 'ABSENT', _('Absent')
+
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='registrations')
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='tournament_registrations')
-    registration_date = models.DateField()
+    registration_date = models.DateField(auto_now_add=True)
     
     # New fields for requirements
     payment_status = models.CharField(
@@ -62,7 +66,20 @@ class TournamentRegistration(models.Model):
         choices=PaymentStatus.choices, 
         default=PaymentStatus.PENDING
     )
-    attended = models.BooleanField(default=False)
+    fee_paid = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
+    attendance_status = models.CharField(
+        max_length=10,
+        choices=AttendanceStatus.choices,
+        null=True, blank=True
+    )
+    registered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='registered_tournaments'
+    )
+    
+    # Results
     score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     rank = models.PositiveIntegerField(null=True, blank=True)
     

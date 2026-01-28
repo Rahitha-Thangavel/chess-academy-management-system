@@ -1,4 +1,5 @@
 import React from 'react';
+import axios from '../../api/axiosInstance';
 
 const CoachManagement = () => {
     const [coaches, setCoaches] = React.useState([]);
@@ -12,22 +13,8 @@ const CoachManagement = () => {
 
     const fetchCoaches = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            // Assuming the endpoint is exposed at /api/auth/users/ (based on users app being under auth/ or similar, need to check main urls.py but usually implies /api/something)
-            // Wait, looking at urls.py it's imported in main urls. Default seems to be /api/auth/ for users app? 
-            // Previous logs showed /api/auth/profile/ so base is likely /api/auth/
-            const response = await fetch('http://localhost:8000/api/auth/users/?role=COACH', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setCoaches(data);
-            } else {
-                console.error('Failed to fetch coaches');
-            }
+            const response = await axios.get('/auth/users/?role=COACH');
+            setCoaches(response.data);
         } catch (error) {
             console.error('Error fetching coaches:', error);
         } finally {

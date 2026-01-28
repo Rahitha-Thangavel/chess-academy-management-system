@@ -1,16 +1,34 @@
 from rest_framework import serializers
-from .models import Batch, BatchEnrollment, CoachAvailability, RescheduleRequest
+from .models import Batch, BatchEnrollment, CoachAvailability, RescheduleRequest, CoachBatchApplication
 
 class BatchSerializer(serializers.ModelSerializer):
     coach_name = serializers.CharField(source='coach_user.get_full_name', read_only=True)
+    current_students = serializers.IntegerField(source='enrollments.count', read_only=True)
 
     class Meta:
         model = Batch
         fields = [
             'id', 'batch_name', 'schedule_day', 'start_time', 
-            'end_time', 'coach_user', 'coach_name', 'created_at'
+            'end_time', 'coach_user', 'coach_name', 'max_students', 'current_students', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+
+class CoachBatchApplicationSerializer(serializers.ModelSerializer):
+    coach_name = serializers.CharField(source='coach.get_full_name', read_only=True)
+    batch_name = serializers.CharField(source='batch.batch_name', read_only=True)
+    batch_schedule = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CoachBatchApplication
+        fields = [
+            'id', 'batch', 'batch_name', 'batch_schedule', 'coach', 'coach_name',
+            'application_message', 'status', 'admin_notes', 'application_date', 'decision_date'
+        ]
+        read_only_fields = ['id', 'status', 'admin_notes', 'decision_date', 'application_date', 'coach']
+        
+    def get_batch_schedule(self, obj):
+        return f"{obj.batch.get_schedule_day_display()} {obj.batch.start_time} - {obj.batch.end_time}"
+
 
 class BatchEnrollmentSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.get_full_name', read_only=True)
@@ -19,7 +37,7 @@ class BatchEnrollmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = BatchEnrollment
         fields = ['id', 'student', 'student_name', 'batch', 'batch_name', 'enrollment_date']
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'enrollment_date']
 
 class CoachAvailabilitySerializer(serializers.ModelSerializer):
     coach_name = serializers.CharField(source='coach.get_full_name', read_only=True)
