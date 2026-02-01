@@ -68,8 +68,8 @@ const AdminLayout = ({ children }) => {
         <div className="d-flex bg-light" style={{ minHeight: '100vh', width: '100%' }}>
             {/* Sidebar */}
             <div className="bg-white" style={{ width: '280px', minHeight: '100vh', position: 'fixed', zIndex: 1000 }}>
-                <div className="p-4 mb-2">
-                    <h5 className="fw-bold text-success m-0" style={{ color: '#6c9343' }}>CAMS Admin</h5>
+                <div className="p-4 mb-2 text-center" style={{ backgroundColor: '#6c9343', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <h5 className="fw-bold m-0 text-white">AAA Grand Master</h5>
                 </div>
 
                 <ul className="nav flex-column gap-2 px-2">
@@ -207,19 +207,19 @@ const AdminLayout = ({ children }) => {
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column" style={{ marginLeft: '280px' }}>
                 {/* Header */}
-                <header className="border-bottom py-3 px-4 d-flex justify-content-between align-items-center sticky-top bg-white">
-                    <h5 className="m-0 fw-bold text-secondary">Chess Academy Management System</h5>
+                <header className="border-bottom py-3 px-4 d-flex justify-content-between align-items-center sticky-top" style={{ backgroundColor: '#6c9343', color: 'white' }}>
+                    <div></div>
 
                     <div className="d-flex align-items-center gap-4">
                         <div className="position-relative" ref={notificationsRef}>
                             <button
-                                className="btn text-dark bg-transparent border-0 position-relative p-0"
+                                className="btn text-white bg-transparent border-0 position-relative p-0"
                                 onClick={() => {
                                     setShowNotifications(!showNotifications);
                                     if (!showNotifications) fetchNotifications();
                                 }}
                             >
-                                <i className="bi bi-bell fs-5 text-secondary"></i>
+                                <i className="bi bi-bell fs-5"></i>
                                 {stats.notifications > 0 && (
                                     <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
                                         {stats.notifications}
@@ -251,32 +251,29 @@ const AdminLayout = ({ children }) => {
                                 </div>
                             )}
                         </div>
-                        <i className="bi bi-gear fs-5 text-secondary"></i>
 
                         <div className="position-relative" ref={profileMenuRef}>
                             <button
-                                className="btn d-flex align-items-center gap-2 text-dark border-0 bg-transparent"
+                                className="btn d-flex align-items-center gap-2 text-white border-0 bg-transparent"
                                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                             >
-                                <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
-                                    style={{ width: '35px', height: '35px', backgroundColor: '#6c9343' }}>
-                                    {user?.first_name?.charAt(0) || 'A'}
+                                <div className="bg-white text-success rounded-circle d-flex align-items-center justify-content-center fw-bold"
+                                    style={{ width: '32px', height: '32px' }}>
+                                    {user?.username?.charAt(0) || 'A'}
                                 </div>
-                                <span className="d-none d-md-block small fw-bold">{user?.first_name || 'Admin'}</span>
+                                <span className="text-white fw-bold">{user?.username || 'Admin'}</span>
+                                <i className="bi bi-chevron-down small text-white"></i>
                             </button>
 
                             {showProfileMenu && (
                                 <div className="position-absolute end-0 mt-2 bg-white border rounded shadow-sm py-2" style={{ minWidth: '200px', top: '100%', right: 0, zIndex: 1050 }}>
                                     <div className="px-3 py-2 border-bottom mb-2">
-                                        <p className="m-0 fw-bold">{user?.first_name} {user?.last_name}</p>
-                                        <small className="text-secondary">{user?.email}</small>
+                                        <p className="m-0 fw-bold text-dark">{user?.username}</p>
+                                        <small className="text-muted">{user?.email}</small>
                                     </div>
-                                    <button className="dropdown-item px-3 py-2 text-secondary d-flex align-items-center gap-2">
+                                    <Link to="/admin/profile" className="dropdown-item px-3 py-2 text-dark d-flex align-items-center gap-2">
                                         <i className="bi bi-person"></i> View Profile
-                                    </button>
-                                    <button className="dropdown-item px-3 py-2 text-secondary d-flex align-items-center gap-2">
-                                        <i className="bi bi-gear"></i> Settings
-                                    </button>
+                                    </Link>
                                     <div className="dropdown-divider my-2"></div>
                                     <button onClick={logout} className="dropdown-item px-3 py-2 text-danger d-flex align-items-center gap-2">
                                         <i className="bi bi-box-arrow-right"></i> Logout

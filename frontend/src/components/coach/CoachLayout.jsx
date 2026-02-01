@@ -199,16 +199,16 @@ const CoachLayout = ({ children }) => {
                             >
                                 <div className="bg-white text-success rounded-circle d-flex align-items-center justify-content-center fw-bold"
                                     style={{ width: '32px', height: '32px' }}>
-                                    {user?.first_name?.charAt(0) || 'C'}
+                                    {user?.username?.charAt(0) || 'C'}
                                 </div>
-                                <span className="text-white">{user?.first_name || 'Coach'}</span>
+                                <span className="text-white">{user?.username || 'Coach'}</span>
                                 <i className="bi bi-chevron-down small text-white"></i>
                             </button>
 
                             {showProfileMenu && (
                                 <div className="position-absolute end-0 mt-2 bg-white border rounded shadow-sm py-2" style={{ minWidth: '200px', top: '100%', right: 0, zIndex: 1050 }}>
                                     <div className="px-3 py-2 border-bottom mb-2">
-                                        <p className="m-0 fw-bold text-dark">{user?.first_name} {user?.last_name}</p>
+                                        <p className="m-0 fw-bold text-dark">{user?.username}</p>
                                         <small className="text-muted">{user?.email}</small>
                                     </div>
                                     <Link to="/coach/profile" className="dropdown-item px-3 py-2 text-dark d-flex align-items-center gap-2">

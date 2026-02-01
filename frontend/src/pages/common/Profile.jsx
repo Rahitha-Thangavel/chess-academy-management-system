@@ -51,14 +51,22 @@ const Profile = () => {
                                     <label className="small text-secondary fw-bold">Username</label>
                                     <div className="p-2 bg-light rounded border-0 fw-bold">@{user?.username}</div>
                                 </div>
-                                <div className="col-md-6">
-                                    <label className="small text-secondary fw-bold">Email Address</label>
-                                    <div className="p-2 bg-light rounded border-0 fw-bold">{user?.email}</div>
+                                <div className="col-md-12 mb-3">
+                                    <label className="form-label text-muted small text-uppercase fw-bold">Email Address</label>
+                                    <div className="p-2 bg-light border rounded text-dark fw-bold">
+                                        {user?.email || 'N/A'}
+                                    </div>
                                 </div>
-                                <div className="col-md-6">
-                                    <label className="small text-secondary fw-bold">Role</label>
-                                    <div className="p-2 bg-light rounded border-0 fw-bold">{user?.role}</div>
-                                </div>
+                                {user?.role !== 'ADMIN' && (
+                                    <div className="col-md-12">
+                                        <label className="form-label text-muted small text-uppercase fw-bold">Role</label>
+                                        <div className="p-2 bg-light border rounded text-dark fw-bold">
+                                            <span className="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                                                {user?.role || 'N/A'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

@@ -38,7 +38,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="container-fluid p-0">
-      <h3 className="fw-bold mb-2 text-success" style={{ color: '#6c9343' }}>Welcome, {user?.first_name || 'Admin'}</h3>
+      <h3 className="fw-bold mb-2 text-success" style={{ color: '#6c9343' }}>Welcome, {user?.username || 'Admin'}</h3>
 
       <div className="row g-4 mt-2">
         {/* Left Column: Stats & Notifications */}

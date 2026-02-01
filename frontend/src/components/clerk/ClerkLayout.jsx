@@ -144,15 +144,15 @@ const ClerkLayout = ({ children }) => {
                             >
                                 <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
                                     style={{ width: '35px', height: '35px', backgroundColor: '#6c9343' }}>
-                                    {user?.first_name ? user.first_name.charAt(0) : 'C'}
+                                    {user?.username ? user.username.charAt(0) : 'C'}
                                 </div>
-                                <span className="d-none d-md-block small fw-bold">{user?.first_name || 'Clerk'}</span>
+                                <span className="d-none d-md-block small fw-bold">{user?.username || 'Clerk'}</span>
                             </button>
 
                             {showProfileMenu && (
                                 <div className="position-absolute end-0 mt-2 bg-white border rounded shadow-sm py-2" style={{ minWidth: '200px', top: '100%', right: 0, zIndex: 1050 }}>
                                     <div className="px-3 py-2 border-bottom mb-2">
-                                        <p className="m-0 fw-bold text-dark">{user?.first_name} {user?.last_name}</p>
+                                        <p className="m-0 fw-bold text-dark">{user?.username}</p>
                                         <small className="text-muted">{user?.email}</small>
                                     </div>
                                     <Link to="/clerk/profile" className="dropdown-item px-3 py-2 text-dark d-flex align-items-center gap-2">

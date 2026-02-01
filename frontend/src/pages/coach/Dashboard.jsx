@@ -73,7 +73,7 @@ const Dashboard = () => {
 
   return (
     <div className="container-fluid p-0">
-      <h3 className="fw-bold mb-4">Welcome, Coach {user?.first_name || 'User'}</h3>
+      <h3 className="fw-bold mb-4">Welcome, {user?.username || 'Coach'}</h3>
 
       <div className="row g-4 mb-5">
         <div className="col-md-4">
