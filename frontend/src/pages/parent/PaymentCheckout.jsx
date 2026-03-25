@@ -1,21 +1,62 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import axios from '../../api/axiosInstance';
 
 const PaymentCheckout = () => {
     const navigate = useNavigate();
     const { id } = useParams(); // In a real app, use this to fetch invoice details
 
     const [isProcessing, setIsProcessing] = useState(false);
+    const [fee, setFee] = useState(null);
+
+    useEffect(() => {
+        const loadFee = async () => {
+            if (!id) return;
+            try {
+                const now = new Date();
+                const currentMonth = now.getMonth() + 1; // 1-12
+                const currentYear = now.getFullYear();
+                const res = await axios.get(`/payments/calculate_fee/`, {
+                    params: { student_id: id, month: currentMonth, year: currentYear },
+                });
+                setFee(res.data);
+            } catch (err) {
+                console.error('Failed to load fee:', err);
+            }
+        };
+
+        loadFee();
+    }, [id]);
 
     const handlePayment = (e) => {
         e.preventDefault();
         setIsProcessing(true);
 
-        // Simulate payment processing
-        setTimeout(() => {
-            setIsProcessing(false);
-            navigate(`/parent/payment/receipt/${id || 'INV-001'}`);
-        }, 2000);
+        const pay = async () => {
+            try {
+                const now = new Date();
+                const paymentDate = now.toISOString().split('T')[0];
+                const computedAmount = fee?.calculated_fee ? Number(fee.calculated_fee) : 0;
+
+                const payload = {
+                    student: id,
+                    amount: computedAmount,
+                    payment_date: paymentDate,
+                    payment_method: 'CARD',
+                    payment_type: 'MONTHLY',
+                };
+
+                const res = await axios.post('/payments/', payload);
+                setIsProcessing(false);
+                navigate(`/parent/payment/receipt/${res.data.id}`);
+            } catch (err) {
+                console.error('Payment failed:', err);
+                setIsProcessing(false);
+                alert('Payment failed. Please try again.');
+            }
+        };
+
+        pay();
     };
 
     return (
@@ -37,16 +78,20 @@ const PaymentCheckout = () => {
                         <div className="p-4">
                             <div className="d-flex justify-content-between mb-2">
                                 <span className="text-secondary">Student Fee (Arjun)</span>
-                                <span className="fw-bold">LKR 2,000</span>
+                                    <span className="fw-bold">{fee?.base_fee ? `LKR ${fee.base_fee}` : 'LKR 2,000'}</span>
                             </div>
                             <div className="d-flex justify-content-between mb-3">
                                 <span className="text-success small">Discount (Sibling)</span>
-                                <span className="text-success small">- LKR 400</span>
+                                    <span className="text-success small">
+                                        {fee?.sibling_count >= 2 ? `- LKR ${(Number(fee.base_fee) - Number(fee.calculated_fee)).toFixed(2)}` : '- LKR 0'}
+                                    </span>
                             </div>
                             <hr />
                             <div className="d-flex justify-content-between align-items-center">
                                 <span className="fw-bold h5 m-0">Total Due</span>
-                                <span className="fw-bold h4 m-0 text-success" style={{ color: '#6c9343' }}>LKR 1,600</span>
+                                    <span className="fw-bold h4 m-0 text-success" style={{ color: '#6c9343' }}>
+                                        LKR {fee?.calculated_fee ? fee.calculated_fee : '0.00'}
+                                    </span>
                             </div>
                         </div>
                     </div>
@@ -86,12 +131,12 @@ const PaymentCheckout = () => {
                                 type="submit"
                                 className="btn text-white fw-bold w-100 py-3 shadow-sm"
                                 style={{ backgroundColor: '#6c9343' }}
-                                disabled={isProcessing}
+                                disabled={isProcessing || !fee}
                             >
                                 {isProcessing ? (
                                     <span><span className="spinner-border spinner-border-sm me-2"></span>Processing...</span>
                                 ) : (
-                                    <span>Pay LKR 1,600</span>
+                                    <span>Pay LKR {fee?.calculated_fee || '0.00'}</span>
                                 )}
                             </button>
 

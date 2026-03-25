@@ -105,26 +105,7 @@ class ReportsViewSet(viewsets.ViewSet):
             total_students = Student.objects.filter(status='ACTIVE').count()
             active_coaches = User.objects.filter(role='COACH', is_active=True).count()
             
-            # 2. Pending Actions
-            pending_students = Student.objects.filter(status='PENDING').count()
-            pending_reschedules = RescheduleRequest.objects.filter(status='PENDING').count()
-            total_pending_actions = pending_students + pending_reschedules
-            
-            # Notifications (Real)
-            from apps.notifications.models import Notification
-            notifications_count = Notification.objects.filter(user=request.user, is_read=False).count()
-            
-            # 3. Payments
-            monthly_revenue = Payment.objects.filter(
-                payment_date__year=today.year,
-                payment_date__month=today.month
-            ).aggregate(total=Sum('amount'))['total'] or 0
-            
-            today_payments = Payment.objects.filter(
-                payment_date=today
-            ).aggregate(total=Sum('amount'))['total'] or 0
-
-            # 4. Schedule
+            # 2. Schedule & Pending Actions (Role-specific)
             today_name = today.strftime('%A')
             day_map = {
                 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 
@@ -134,14 +115,60 @@ class ReportsViewSet(viewsets.ViewSet):
             
             todays_batches = Batch.objects.filter(schedule_day=today_code).select_related('coach_user')
             todays_classes_count = todays_batches.count()
+
+            pending_students = 0
+            pending_reschedules = 0
+            pending_attendance = 0
+            pending_payments = 0
             
-            # Expected payments (This is complex, let's simplify for now: active students who haven't paid this month)
-            paid_this_month = Payment.objects.filter(
-                payment_date__year=today.year,
-                payment_date__month=today.month,
-                payment_type='MONTHLY'
-            ).values_list('student_id', flat=True)
-            unpaid_count = Student.objects.filter(status='ACTIVE').exclude(id__in=paid_this_month).count()
+            if request.user.role in ['ADMIN', 'CLERK']:
+                pending_students = Student.objects.filter(status='PENDING').count()
+                pending_reschedules = RescheduleRequest.objects.filter(status='PENDING').count()
+            elif request.user.role == 'COACH':
+                # For coaches, "pending" could be batches that need attendance today
+                my_batches = todays_batches.filter(coach_user=request.user)
+                for b in my_batches:
+                    if not Attendance.objects.filter(batch=b, date=today).exists():
+                        pending_attendance += 1
+            elif request.user.role == 'PARENT':
+                # For parents, pending could be unpaid invoices or unread notifications
+                # Let's count students with no payment this month
+                paid_this_month = Payment.objects.filter(
+                    payment_date__year=today.year,
+                    payment_date__month=today.month,
+                    payment_type='MONTHLY'
+                ).values_list('student_id', flat=True)
+                pending_payments = Student.objects.filter(parent_user=request.user, status='ACTIVE').exclude(id__in=paid_this_month).count()
+
+            total_pending_actions = pending_students + pending_reschedules + pending_attendance
+            
+            # Notifications (Real)
+            from apps.notifications.models import Notification
+            notifications_count = Notification.objects.filter(user=request.user, is_read=False).count()
+            
+            # 3. Payments (Admin/Clerk only)
+            monthly_revenue = 0
+            today_payments = 0
+            unpaid_count = 0
+            if request.user.role in ['ADMIN', 'CLERK']:
+                monthly_revenue = Payment.objects.filter(
+                    payment_date__year=today.year,
+                    payment_date__month=today.month
+                ).aggregate(total=Sum('amount'))['total'] or 0
+                
+                today_payments = Payment.objects.filter(
+                    payment_date=today
+                ).aggregate(total=Sum('amount'))['total'] or 0
+
+                paid_this_month_global = Payment.objects.filter(
+                    payment_date__year=today.year,
+                    payment_date__month=today.month,
+                    payment_type='MONTHLY'
+                ).values_list('student_id', flat=True)
+                unpaid_count = Student.objects.filter(status='ACTIVE').exclude(id__in=paid_this_month_global).count()
+                payments_due = unpaid_count * 2000 # Assume LKR 2000 per month
+            else:
+                payments_due = 0
             
             # Registration list (Recent Activity)
             recent_registrations = Student.objects.order_by('-created_at')[:5]
@@ -156,9 +183,20 @@ class ReportsViewSet(viewsets.ViewSet):
                 schedule_data.append({
                     'time': batch.start_time.strftime('%I:%M %p'),
                     'title': batch.batch_name,
-                    'coach': batch.coach_user.get_full_name(),
+                    'coach': batch.coach_user.get_full_name() if batch.coach_user else "No Coach Assigned",
                     'students': f"{batch.enrollments.count()} students"
                 })
+
+            # Recent Notifications (Actionable/Unread only)
+            recent_notifs = Notification.objects.filter(user=request.user, is_read=False).order_by('-created_at')[:5]
+            notif_data = [{
+                'id': n.id,
+                'title': n.title,
+                'message': n.message,
+                'is_read': n.is_read,
+                'target_url': n.target_url,
+                'created_at': n.created_at.isoformat()
+            } for n in recent_notifs]
 
             return Response({
                 'total_students': total_students,
@@ -166,18 +204,19 @@ class ReportsViewSet(viewsets.ViewSet):
                 'pending_actions': total_pending_actions,
                 'pending_students': pending_students,
                 'pending_reschedules': pending_reschedules,
+                'pending_attendance': pending_attendance,
+                'pending_payments': pending_payments if request.user.role == 'PARENT' else 0,
                 'notifications': notifications_count, 
+                'recent_notifications': notif_data,
                 'todays_classes': todays_classes_count,
                 'monthly_revenue': monthly_revenue,
                 'today_payments': today_payments,
                 'unpaid_students_count': unpaid_count,
+                'payments_due': payments_due,
                 'todays_schedule': schedule_data,
                 'recent_registrations': reg_data,
                 'upcoming_tournaments_count': Tournament.objects.filter(tournament_date__gte=today).count()
             })
-        except Exception as e:
-            logger.error(f"Error in dashboard_stats: {str(e)}", exc_info=True)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"Error in dashboard_stats: {str(e)}", exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

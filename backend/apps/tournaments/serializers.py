@@ -21,9 +21,21 @@ class TournamentRegistrationSerializer(serializers.ModelSerializer):
         model = TournamentRegistration
         fields = [
             'id', 'tournament', 'tournament_name', 'student', 'student_name', 
-            'registration_date', 'payment_status', 'attended', 'score', 'rank'
+            'registration_date', 'status', 'payment_status', 'fee_paid', 'attendance_status', 
+            'score', 'rank'
         ]
-        read_only_fields = ['id']
+        read_only_fields = [
+            'id',
+            'registration_date',
+            'status',
+            'tournament_name',
+            'student_name',
+            'payment_status',
+            'fee_paid',
+            'attendance_status',
+            'score',
+            'rank',
+        ]
 
 class TournamentMatchSerializer(serializers.ModelSerializer):
     player1_name = serializers.CharField(source='player1.get_full_name', read_only=True)

@@ -2,59 +2,41 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from '../../api/axiosInstance';
+import NotificationTray from '../NotificationTray';
+import NotificationAlert from '../NotificationAlert';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const CoachLayout = ({ children }) => {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
-    const [showNotifications, setShowNotifications] = useState(false);
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [stats, setStats] = useState({ pending_attendance: 0 });
     const profileMenuRef = useRef(null);
-    const notificationsRef = useRef(null);
 
     useEffect(() => {
-        fetchUnreadCount();
-        const interval = setInterval(fetchUnreadCount, 60000);
+        fetchStats();
+        const interval = setInterval(fetchStats, 30000);
         return () => clearInterval(interval);
     }, []);
 
-    const fetchUnreadCount = async () => {
+    const fetchStats = async () => {
         try {
-            const res = await axios.get('/api/notifications/unread_count/');
-            setUnreadCount(res.data.count);
-        } catch (err) {
-            console.error(err);
+            const response = await axios.get('/analytics/reports/dashboard_stats/');
+            setStats(response.data);
+        } catch (error) {
+            console.error('Error fetching dashboard stats:', error);
         }
     };
 
-    const fetchNotifications = async () => {
-        try {
-            const res = await axios.get('/api/notifications/');
-            setNotifications(res.data);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const markAllRead = async () => {
-        try {
-            await axios.post('/api/notifications/mark_all_read/');
-            fetchNotifications();
-            fetchUnreadCount();
-        } catch (err) {
-            console.error(err);
-        }
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
     };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
                 setShowProfileMenu(false);
-            }
-            if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
-                setShowNotifications(false);
             }
         };
 
@@ -63,11 +45,6 @@ const CoachLayout = ({ children }) => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
-
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
 
     return (
         <div className="d-flex" style={{ minHeight: '100vh', backgroundColor: '#f5f6f8' }}>
@@ -113,8 +90,15 @@ const CoachLayout = ({ children }) => {
                                 }
                                 style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
                             >
-                                <i className="bi bi-check-square"></i>
-                                Attendance
+                                <div className="d-flex align-items-center w-100 justify-content-between">
+                                    <div className="d-flex align-items-center gap-3">
+                                        <i className="bi bi-check-square"></i>
+                                        <span>Attendance</span>
+                                    </div>
+                                    {stats.pending_attendance > 0 && (
+                                        <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.7rem' }}>{stats.pending_attendance}</span>
+                                    )}
+                                </div>
                             </NavLink>
                         </li>
                         <li className="nav-item">
@@ -152,45 +136,7 @@ const CoachLayout = ({ children }) => {
                 <header className="border-bottom py-3 px-4 d-flex justify-content-between align-items-center sticky-top shadow-sm" style={{ backgroundColor: '#6c9343', color: 'white' }}>
                     <h4 className="m-0 fw-bold text-white"></h4>
                     <div className="d-flex align-items-center gap-4">
-                        <div className="position-relative" ref={notificationsRef}>
-                            <button
-                                className="btn text-white bg-transparent border-0 position-relative p-0"
-                                onClick={() => {
-                                    setShowNotifications(!showNotifications);
-                                    if (!showNotifications) fetchNotifications();
-                                }}
-                            >
-                                <i className="bi bi-bell fs-5 text-white"></i>
-                                {unreadCount > 0 && (
-                                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
-                                        {unreadCount}
-                                    </span>
-                                )}
-                            </button>
-                            {showNotifications && (
-                                <div className="position-absolute end-0 mt-2 bg-white border rounded shadow-sm" style={{ width: '320px', maxHeight: '400px', overflowY: 'auto', zIndex: 1050 }}>
-                                    <div className="p-2 border-bottom d-flex justify-content-between align-items-center bg-light">
-                                        <h6 className="m-0 fw-bold small text-secondary">Notifications</h6>
-                                        <button className="btn btn-link btn-sm text-decoration-none p-0" style={{ fontSize: '0.75rem' }} onClick={markAllRead}>Mark all read</button>
-                                    </div>
-                                    <div className="list-group list-group-flush">
-                                        {notifications.length === 0 ? (
-                                            <div className="p-3 text-center text-muted small">No notifications</div>
-                                        ) : (
-                                            notifications.map(notif => (
-                                                <div key={notif.id} className={`list-group-item list-group-item-action p-2 ${!notif.is_read ? 'bg-light' : ''}`}>
-                                                    <div className="d-flex w-100 justify-content-between align-items-start">
-                                                        <strong className="mb-1 small text-dark d-block">{notif.title}</strong>
-                                                        <small className="text-muted" style={{ fontSize: '0.65rem' }}>{new Date(notif.created_at).toLocaleDateString()}</small>
-                                                    </div>
-                                                    <p className="mb-1 small text-secondary text-truncate" style={{ fontSize: '0.8rem' }}>{notif.message}</p>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        <NotificationTray />
 
                         <div className="position-relative" ref={profileMenuRef}>
                             <button
@@ -228,6 +174,7 @@ const CoachLayout = ({ children }) => {
 
                 {/* Page Content */}
                 <main className="p-4 flex-grow-1">
+                    <NotificationAlert />
                     {children}
                 </main>
             </div>

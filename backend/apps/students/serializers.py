@@ -8,6 +8,8 @@ class StudentSerializer(serializers.ModelSerializer):
     parent_username = serializers.CharField(write_only=True, required=False)
     parent_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
+    batch_names = serializers.SerializerMethodField()
+    enrollments = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
@@ -25,9 +27,13 @@ class StudentSerializer(serializers.ModelSerializer):
             'parent_name',
             'created_by',
             'created_by_name',
-            'enrollments'
+            'enrollments',
+            'batch_names'
         ]
         read_only_fields = ['id', 'enrollment_date', 'status', 'parent_user', 'created_by']
+
+    def get_batch_names(self, obj):
+        return [enrollment.batch.batch_name for enrollment in obj.enrollments.all()]
 
     def get_enrollments(self, obj):
         from apps.batches.serializers import BatchEnrollmentSerializer

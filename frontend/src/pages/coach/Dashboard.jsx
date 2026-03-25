@@ -6,20 +6,30 @@ import axios from '../../api/axiosInstance';
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [statsData, setStatsData] = useState(null);
   const [batches, setBatches] = useState([]);
-  const [availableBatchCount, setAvailableBatchCount] = useState(0);
+  const [availableBatches, setAvailableBatches] = useState([]);
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    fetchDashboardData();
     fetchBatches();
     fetchAvailableBatches();
     fetchTodayAttendance();
   }, []);
 
+  const fetchDashboardData = async () => {
+    try {
+      const response = await axios.get('/analytics/reports/dashboard_stats/');
+      setStatsData(response.data);
+    } catch (err) {
+      console.error('Error fetching dashboard stats:', err);
+    }
+  };
+
   const fetchBatches = async () => {
     try {
-      // Fetches assigned batches (backend filters by current coach)
       const response = await axios.get('/batches/');
       setBatches(response.data);
     } catch (error) {
@@ -31,9 +41,8 @@ const Dashboard = () => {
 
   const fetchAvailableBatches = async () => {
     try {
-      // Fetches unassigned batches for opportunities
       const response = await axios.get('/batches/unassigned/');
-      setAvailableBatchCount(response.data.length);
+      setAvailableBatches(response.data);
     } catch (error) {
       console.error('Error fetching available batches:', error);
     }
@@ -42,7 +51,6 @@ const Dashboard = () => {
   const fetchTodayAttendance = async () => {
     try {
       const response = await axios.get('/coaches/');
-      // Find today's record for this coach
       const today = new Date().toISOString().split('T')[0];
       const record = response.data.find(r => r.date === today);
       setTodayAttendance(record);
@@ -71,6 +79,18 @@ const Dashboard = () => {
     }
   };
 
+  const handleNotificationClick = async (notif) => {
+    try {
+      if (!notif.is_read) {
+        await axios.post(`/api/notifications/${notif.id}/mark_read/`);
+      }
+      if (notif.target_url) window.location.href = notif.target_url;
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+      if (notif.target_url) window.location.href = notif.target_url;
+    }
+  };
+
   return (
     <div className="container-fluid p-0">
       <h3 className="fw-bold mb-4">Welcome, {user?.username || 'Coach'}</h3>
@@ -89,7 +109,7 @@ const Dashboard = () => {
             <div className="d-flex justify-content-between align-items-center">
               <div>
                 <small className="text-primary fw-bold d-block mb-1">Open Opportunities</small>
-                <h3 className="fw-bold m-0 text-primary">{availableBatchCount}</h3>
+                <h3 className="fw-bold m-0 text-primary">{availableBatches.length}</h3>
               </div>
               <i className="bi bi-briefcase fs-1 text-primary opacity-25"></i>
             </div>
@@ -170,6 +190,36 @@ const Dashboard = () => {
                   <small className="text-muted">View payments</small>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Recent Notifications Card */}
+          <div className="card border-0 shadow-sm rounded-4 mt-4 overflow-hidden">
+            <div className="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+              <h6 className="fw-bold m-0" style={{ color: '#6c9343' }}>Recent Notifications</h6>
+              <span className="badge rounded-pill bg-success" style={{ backgroundColor: '#6c9343' }}>{statsData?.notifications || 0} New</span>
+            </div>
+            <div className="list-group list-group-flush">
+              {!statsData?.recent_notifications || statsData.recent_notifications.length === 0 ? (
+                <div className="p-4 text-center text-muted">No notifications yet.</div>
+              ) : (
+                statsData.recent_notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={`list-group-item list-group-item-action p-3 border-start border-4 ${!notif.is_read ? 'border-success bg-light' : 'border-transparent'}`}
+                    onClick={() => handleNotificationClick(notif)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="d-flex w-100 justify-content-between align-items-start">
+                      <strong className="small text-dark">{notif.title}</strong>
+                      <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                        {new Date(notif.created_at).toLocaleDateString()}
+                      </small>
+                    </div>
+                    <p className="mb-0 small text-secondary mt-1">{notif.message}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

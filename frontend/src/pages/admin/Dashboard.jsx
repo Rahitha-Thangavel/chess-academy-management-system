@@ -36,6 +36,19 @@ const AdminDashboard = () => {
     { label: 'Payments Due', value: `LKR ${Number(statsData.payments_due).toLocaleString()}`, icon: 'bi-currency-dollar', bg: 'bg-light text-success' }
   ];
 
+  const handleNotificationClick = async (notif) => {
+    try {
+      if (!notif.is_read) {
+        await axios.post(`/api/notifications/${notif.id}/mark_read/`);
+      }
+      if (notif.target_url) window.location.href = notif.target_url;
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+      // Fallback: still navigate
+      if (notif.target_url) window.location.href = notif.target_url;
+    }
+  };
+
   return (
     <div className="container-fluid p-0">
       <h3 className="fw-bold mb-2 text-success" style={{ color: '#6c9343' }}>Welcome, {user?.username || 'Admin'}</h3>
@@ -63,17 +76,33 @@ const AdminDashboard = () => {
             ))}
           </div>
 
-          {/* Wide Notification Card */}
-          <div className="card border-0 shadow-sm p-3 mt-3 rounded-3" style={{ backgroundColor: '#f8f9fa' }}>
-            <div className="d-flex align-items-center gap-3">
-              <div className="rounded-circle p-3 d-flex align-items-center justify-content-center text-success"
-                style={{ width: '50px', height: '50px', backgroundColor: 'white' }}>
-                <i className="bi bi-bell fs-4"></i>
-              </div>
-              <div>
-                <small className="text-secondary fw-bold d-block">Notifications</small>
-                <h4 className="fw-bold m-0">{statsData.notifications}</h4>
-              </div>
+          {/* Recent Notifications Card */}
+          <div className="card border-0 shadow-sm rounded-4 mt-3 overflow-hidden">
+            <div className="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+              <h6 className="fw-bold m-0" style={{ color: '#6c9343' }}>Recent Notifications</h6>
+              <span className="badge rounded-pill bg-success" style={{ backgroundColor: '#6c9343' }}>{statsData.notifications} New</span>
+            </div>
+            <div className="list-group list-group-flush">
+              {!statsData.recent_notifications || statsData.recent_notifications.length === 0 ? (
+                <div className="p-4 text-center text-muted">No notifications yet.</div>
+              ) : (
+                statsData.recent_notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={`list-group-item list-group-item-action p-3 border-start border-4 ${!notif.is_read ? 'border-success bg-light' : 'border-transparent'}`}
+                    onClick={() => handleNotificationClick(notif)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="d-flex w-100 justify-content-between align-items-start">
+                      <strong className="small text-dark">{notif.title}</strong>
+                      <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                        {new Date(notif.created_at).toLocaleDateString()}
+                      </small>
+                    </div>
+                    <p className="mb-0 small text-secondary mt-1">{notif.message}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

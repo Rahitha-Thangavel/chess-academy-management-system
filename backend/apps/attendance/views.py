@@ -2,9 +2,11 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
+from datetime import timedelta
 from .models import Attendance, CoachAttendance
 from .serializers import AttendanceSerializer, CoachAttendanceSerializer
 from apps.students.models import Student
+from rest_framework.exceptions import PermissionDenied
 
 class AttendanceViewSet(viewsets.ModelViewSet):
     queryset = Attendance.objects.all()
@@ -21,21 +23,60 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         return Attendance.objects.all()
 
     def perform_create(self, serializer):
+        # [R9] Only Admin/Clerk should digitally record attendance for students.
+        if self.request.user.role not in ['ADMIN', 'CLERK']:
+            raise PermissionDenied('Unauthorized.')
+
         instance = serializer.save()
         # [R11] Alert if 3 consecutive absences
         if instance.status == 'ABSENT':
             self._check_consecutive_absences(instance.student)
 
+    def perform_update(self, serializer):
+        # Only Admin/Clerk can edit recorded student attendance.
+        if self.request.user.role not in ['ADMIN', 'CLERK']:
+            raise PermissionDenied('Unauthorized.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if self.request.user.role not in ['ADMIN', 'CLERK']:
+            raise PermissionDenied('Unauthorized.')
+        instance.delete()
+
     def _check_consecutive_absences(self, student):
         last_3 = Attendance.objects.filter(student=student).order_by('-attendance_date')[:3]
         if len(last_3) == 3 and all(a.status == 'ABSENT' for a in last_3):
-            # In a real app, send Email/SMS. For now, we log it.
-            print(f"ALERT: Student {student.get_full_name()} has 3 consecutive absences!")
-            # Logic to notify parent can be added here (e.g. creating a Notification model)
+            # [R11] Create parent notification (avoid spamming).
+            from apps.notifications.models import Notification
+            from apps.notifications.utils import create_notification
+
+            now = timezone.now()
+            recent_alert = Notification.objects.filter(
+                user=student.parent_user,
+                notification_type='ABSENCE_ALERT',
+                created_at__gte=now - timedelta(days=7),
+                message__icontains=student.first_name,
+            ).exists()
+
+            if not recent_alert:
+                create_notification(
+                    user=student.parent_user,
+                    notification_type='ABSENCE_ALERT',
+                    title='Consecutive Absence Alert',
+                    message=(
+                        f'Student {student.first_name} {student.last_name} has been absent '
+                        f'for 3 consecutive classes. Please inform the academy of the reason.'
+                    ),
+                    target_url='/parent/attendance',
+                )
 
     @action(detail=False, methods=['post'])
     def bulk_record(self, request):
         """[R9] Record attendance for a whole batch."""
+        # Only Admin/Clerk should record student attendance digitally.
+        if request.user.role not in ['ADMIN', 'CLERK']:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
         batch_id = request.data.get('batch_id')
         date = request.data.get('date', timezone.now().date())
         attendance_data = request.data.get('attendance', []) # List of {student_id: status}
@@ -69,7 +110,27 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role == 'COACH':
             return CoachAttendance.objects.filter(coach=user)
-        return CoachAttendance.objects.all()
+        if user.role in ['ADMIN', 'CLERK']:
+            return CoachAttendance.objects.all()
+        return CoachAttendance.objects.none()
+
+    def perform_create(self, serializer):
+        # Coaches mark attendance using custom actions (clock_in/clock_out).
+        # Block direct create by others.
+        if self.request.user.role != 'COACH':
+            raise PermissionDenied('Unauthorized.')
+        serializer.save(coach=self.request.user)
+
+    def perform_update(self, serializer):
+        # Admin/Clerk can adjust timestamps (FR13).
+        if self.request.user.role not in ['ADMIN', 'CLERK']:
+            raise PermissionDenied('Unauthorized.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if self.request.user.role not in ['ADMIN', 'CLERK']:
+            raise PermissionDenied('Unauthorized.')
+        instance.delete()
 
     @action(detail=False, methods=['post'])
     def clock_in(self, request):

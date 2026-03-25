@@ -11,29 +11,74 @@ class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['status', 'grade_level', 'school', 'parent_user']
-    search_fields = ['first_name', 'last_name', 'school', 'parent_user__username', 'parent_user__first_name']
+    filterset_fields = {
+        'status': ['exact'],
+        'school': ['exact', 'icontains'],
+        'grade_level': ['exact'],
+        'parent_user': ['exact'],
+    }
+    search_fields = ['first_name', 'last_name', 'school', 'parent_user__username', 'parent_user__first_name', 'id']
 
     def get_queryset(self):
         user = self.request.user
         if user.role == 'PARENT':
             return Student.objects.filter(parent_user=user)
-        # Admins/Clerks see all or filtered
-        status_param = self.request.query_params.get('status')
-        if status_param:
-            return Student.objects.filter(status=status_param)
-        return Student.objects.all()
+        
+        queryset = Student.objects.all()
+        
+        # Manual handle of batch filter if needed, or just let DjangoFilter handle the rest
+        batch_id = self.request.query_params.get('enrollments__batch')
+        if batch_id:
+            queryset = queryset.filter(enrollments__batch=batch_id)
+            
+        return queryset
 
     def create(self, request, *args, **kwargs):
-        print(f"DEBUG: Create request user: {request.user}, role: {getattr(request.user, 'role', 'Unknown')}")
-        print(f"DEBUG: Create data: {request.data}")
         serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-             print(f"DEBUG: Validation Errors: {serializer.errors}")
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        student = serializer.save()
+        
+        # Trigger Notifications
+        try:
+            from apps.notifications.utils import create_notification
+            from apps.users.models import User
+            
+            # Notify Parent
+            create_notification(
+                user=student.parent_user,
+                notification_type='SYSTEM',
+                title='Student Registered',
+                message=f'Student {student.first_name} {student.last_name} has been registered and is pending approval.',
+                target_url='/parent/students'
+            )
+            
+            # Notify Admins
+            admins = User.objects.filter(role='ADMIN')
+            for admin in admins:
+                create_notification(
+                    user=admin,
+                    notification_type='ADMIN_ALERT',
+                    title='Pending Student Approval',
+                    message=f'A new student registration for {student.first_name} {student.last_name} needs approval.',
+                    target_url='/admin/students'
+                )
+        except Exception as e:
+            print(f"Error triggering notifications: {e}")
+
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_update(self, serializer):
+        if self.request.user.role not in ['ADMIN', 'CLERK']:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Admin/Clerk can edit student records.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if self.request.user.role not in ['ADMIN', 'CLERK']:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Admin/Clerk can delete student records.')
+        instance.delete()
 
     @action(detail=False, methods=['get'])
     def pending(self, request):
@@ -54,36 +99,40 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        if request.user.role not in ['ADMIN', 'CLERK']:
+        if request.user.role != 'ADMIN':
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         student = self.get_object()
         student.status = Student.Status.ACTIVE
         student.save()
         
         # Trigger Notification
-        from apps.notifications.utils import create_notification
+        from apps.notifications.utils import create_notification, mark_stale_notifications
+        mark_stale_notifications('/admin/students')
         create_notification(
             user=student.parent_user,
             notification_type='SYSTEM',
             title='Registration Approved',
-            message=f'Student registration for {student.first_name} {student.last_name} has been approved.'
+            message=f'Student registration for {student.first_name} {student.last_name} has been approved.',
+            target_url='/parent/students'
         )
         return Response({'status': 'approved'})
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
-        if request.user.role not in ['ADMIN', 'CLERK']:
+        if request.user.role != 'ADMIN':
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         student = self.get_object()
         student.status = Student.Status.REJECTED
         student.save()
         
         # Trigger Notification
-        from apps.notifications.utils import create_notification
+        from apps.notifications.utils import create_notification, mark_stale_notifications
+        mark_stale_notifications('/admin/students')
         create_notification(
             user=student.parent_user,
             notification_type='SYSTEM',
             title='Registration Rejected',
-            message=f'Student registration for {student.first_name} {student.last_name} has been rejected.'
+            message=f'Student registration for {student.first_name} {student.last_name} has been rejected.',
+            target_url='/parent/students'
         )
         return Response({'status': 'rejected'})

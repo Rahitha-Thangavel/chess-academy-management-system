@@ -1,9 +1,25 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import axios from '../../api/axiosInstance';
 
 const PaymentReceipt = () => {
     const navigate = useNavigate();
     const { id } = useParams();
+    const [payment, setPayment] = useState(null);
+
+    useEffect(() => {
+        const loadPayment = async () => {
+            if (!id) return;
+            try {
+                const res = await axios.get(`/payments/${id}/`);
+                setPayment(res.data);
+            } catch (err) {
+                console.error('Failed to load payment:', err);
+            }
+        };
+
+        loadPayment();
+    }, [id]);
 
     return (
         <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light">
@@ -19,19 +35,25 @@ const PaymentReceipt = () => {
                 <div className="p-4 bg-white">
                     <div className="d-flex justify-content-between mb-3 border-bottom pb-3">
                         <span className="text-secondary">Transaction ID</span>
-                        <span className="fw-bold text-dark">TXN-{Math.floor(Math.random() * 1000000)}</span>
+                        <span className="fw-bold text-dark">{payment?.id || id || 'TXN-000000'}</span>
                     </div>
                     <div className="d-flex justify-content-between mb-3 border-bottom pb-3">
                         <span className="text-secondary">Date</span>
-                        <span className="fw-bold text-dark">{new Date().toLocaleDateString()}</span>
+                        <span className="fw-bold text-dark">
+                            {payment?.payment_date ? new Date(payment.payment_date).toLocaleDateString() : new Date().toLocaleDateString()}
+                        </span>
                     </div>
                     <div className="d-flex justify-content-between mb-3 border-bottom pb-3">
                         <span className="text-secondary">Payment Method</span>
-                        <span className="fw-bold text-dark">Credit Card</span>
+                        <span className="fw-bold text-dark">
+                            {payment?.payment_method || 'CARD'}
+                        </span>
                     </div>
                     <div className="d-flex justify-content-between mb-4">
                         <span className="text-secondary fw-bold">Amount Paid</span>
-                        <span className="fw-bold text-success h5 m-0">LKR 1,600</span>
+                        <span className="fw-bold text-success h5 m-0">
+                            LKR {payment?.amount ?? '0.00'}
+                        </span>
                     </div>
 
                     <button

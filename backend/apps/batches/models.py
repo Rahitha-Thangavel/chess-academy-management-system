@@ -13,14 +13,34 @@ class Batch(models.Model):
         SAT = 'SAT', _('Saturday')
         SUN = 'SUN', _('Sunday')
 
+    class BatchType(models.TextChoices):
+        RECURRING = 'RECURRING', _('Recurring')
+        ONE_TIME = 'ONE_TIME', _('One-time')
+
+    class BatchStatus(models.TextChoices):
+        ACTIVE = 'ACTIVE', _('Active')
+        INACTIVE = 'INACTIVE', _('Inactive')
+        FINISHED = 'FINISHED', _('Finished')
+
     id = models.CharField(primary_key=True, max_length=20, editable=False)
     batch_name = models.CharField(max_length=100)
+    batch_type = models.CharField(
+        max_length=15,
+        choices=BatchType.choices,
+        default=BatchType.RECURRING
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=BatchStatus.choices,
+        default=BatchStatus.ACTIVE
+    )
     schedule_day = models.CharField(
         max_length=3,
         choices=DayOfWeek.choices,
         blank=True, 
         null=True
     )
+    exact_date = models.DateField(null=True, blank=True)
     start_time = models.TimeField()
     end_time = models.TimeField()
     coach_user = models.ForeignKey(

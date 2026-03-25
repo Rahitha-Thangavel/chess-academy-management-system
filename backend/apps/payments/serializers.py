@@ -20,7 +20,19 @@ class SalarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Salary
         fields = [
-            'id', 'coach_user', 'coach_name', 'payment_period', 
-            'total_hours', 'hourly_rate', 'created_at'
+            'id',
+            'salary_code',
+            'coach_user',
+            'coach_name',
+            'payment_period',
+            'batch',
+            'total_hours',
+            'hourly_rate',
+            'gross_amount',
+            'deductions',
+            'net_amount',
+            'payment_date',
+            'status',
+            'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'salary_code', 'coach_name', 'coach_user', 'gross_amount', 'deductions']

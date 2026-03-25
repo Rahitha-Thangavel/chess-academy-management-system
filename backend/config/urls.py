@@ -25,7 +25,7 @@ urlpatterns = [
     path('api/', include('apps.payments.urls')),
     path('api/analytics/', include('apps.analytics.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
-    path('api/tournaments/', include('apps.tournaments.urls')),
+    path('api/', include('apps.tournaments.urls')),
     
     # API Documentation
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='swagger-ui'),

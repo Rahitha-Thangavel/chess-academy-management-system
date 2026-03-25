@@ -7,19 +7,59 @@ const CoachManagement = () => {
     const [selectedCoach, setSelectedCoach] = React.useState(null);
     const [showModal, setShowModal] = React.useState(false);
 
+    // Filters
+    const [searchQuery, setSearchQuery] = React.useState('');
+    const [qualificationFilter, setQualificationFilter] = React.useState('');
+    const [statusFilter, setStatusFilter] = React.useState('');
+    const [minRate, setMinRate] = React.useState('');
+    const [maxRate, setMaxRate] = React.useState('');
+
+    // Debounced values
+    const [debouncedSearch, setDebouncedSearch] = React.useState('');
+    const [debouncedQual, setDebouncedQual] = React.useState('');
+
+    React.useEffect(() => {
+        const handler = setTimeout(() => setDebouncedSearch(searchQuery), 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
+
+    React.useEffect(() => {
+        const handler = setTimeout(() => setDebouncedQual(qualificationFilter), 500);
+        return () => clearTimeout(handler);
+    }, [qualificationFilter]);
+
     React.useEffect(() => {
         fetchCoaches();
-    }, []);
+    }, [debouncedSearch, debouncedQual, statusFilter, minRate, maxRate]);
 
     const fetchCoaches = async () => {
         try {
-            const response = await axios.get('/auth/users/?role=COACH');
+            setLoading(true);
+            const params = new URLSearchParams();
+            params.append('role', 'COACH');
+
+            if (debouncedSearch) params.append('search', debouncedSearch);
+            if (debouncedQual) params.append('qualification', debouncedQual);
+            if (statusFilter) params.append('status', statusFilter);
+            if (minRate) params.append('min_rate', minRate);
+            if (maxRate) params.append('max_rate', maxRate);
+
+            const queryString = params.toString();
+            const response = await axios.get(`/auth/users/?${queryString}`);
             setCoaches(response.data);
         } catch (error) {
             console.error('Error fetching coaches:', error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleResetFilters = () => {
+        setSearchQuery('');
+        setQualificationFilter('');
+        setStatusFilter('');
+        setMinRate('');
+        setMaxRate('');
     };
 
     const handleViewProfile = (coach) => {
@@ -31,7 +71,82 @@ const CoachManagement = () => {
         <div className="container-fluid p-0">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h3 className="fw-bold m-0 text-success" style={{ color: '#6c9343' }}>Coach Management</h3>
-                {/* Add Coach button removed as requested */}
+            </div>
+
+            {/* Filter Bar */}
+            <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                <div className="row g-3 align-items-end">
+                    <div className="col-md-2">
+                        <label className="form-label small fw-bold text-secondary">Search Name</label>
+                        <div className="input-group">
+                            <input
+                                type="text"
+                                className="form-control border-end-0 bg-light border-0"
+                                placeholder="Search coach..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            <span className="input-group-text bg-light border-start-0 border-0"><i className="bi bi-search text-secondary"></i></span>
+                        </div>
+                    </div>
+
+                    <div className="col-md-3">
+                        <label className="form-label small fw-bold text-secondary">Qualification</label>
+                        <input
+                            type="text"
+                            className="form-control bg-light border-0"
+                            placeholder="e.g. FIDE, National"
+                            value={qualificationFilter}
+                            onChange={(e) => setQualificationFilter(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="col-md-2">
+                        <label className="form-label small fw-bold text-secondary">Status</label>
+                        <select
+                            className="form-select bg-light border-0"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div className="col-md-2">
+                        <label className="form-label small fw-bold text-secondary">Min Rate (LKR)</label>
+                        <input
+                            type="number"
+                            className="form-control bg-light border-0"
+                            placeholder="Min"
+                            value={minRate}
+                            onChange={(e) => setMinRate(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="col-md-2">
+                        <label className="form-label small fw-bold text-secondary">Max Rate (LKR)</label>
+                        <input
+                            type="number"
+                            className="form-control bg-light border-0"
+                            placeholder="Max"
+                            value={maxRate}
+                            onChange={(e) => setMaxRate(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="col-md-1">
+                        <button
+                            className="btn btn-light border w-100 fw-bold"
+                            onClick={handleResetFilters}
+                            title="Reset Filters"
+                            style={{ height: '38px' }}
+                        >
+                            <i className="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {loading ? (

@@ -1,6 +1,9 @@
 from rest_framework import viewsets, permissions, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
 from .models import Batch, BatchEnrollment, CoachAvailability, RescheduleRequest, CoachBatchApplication
 from .serializers import (
     BatchSerializer, BatchEnrollmentSerializer, 
@@ -17,6 +20,41 @@ class BatchViewSet(viewsets.ModelViewSet):
         if user.is_authenticated and user.role == 'COACH':
             return Batch.objects.filter(coach_user=user)
         return Batch.objects.all()
+
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['status', 'batch_type', 'schedule_day']
+    search_fields = ['batch_name', 'id']
+
+    def perform_create(self, serializer):
+        batch = serializer.save()
+        # Notify all coaches about new batch
+        from apps.notifications.utils import create_notification
+        from apps.users.models import User
+        if not batch.coach_user:
+            coaches = User.objects.filter(role='COACH')
+            for coach in coaches:
+                create_notification(
+                    user=coach,
+                    notification_type='COACH_ALERT',
+                    title='New Batch Available',
+                    message=f'A new batch "{batch.batch_name}" has been created. Click to apply.',
+                    target_url='/coach/batches'
+                )
+
+    def perform_update(self, serializer):
+        old_coach = self.get_object().coach_user
+        batch = serializer.save()
+        new_coach = batch.coach_user
+        
+        if new_coach and new_coach != old_coach:
+            from apps.notifications.utils import create_notification
+            create_notification(
+                user=new_coach,
+                notification_type='COACH_ALERT',
+                title='Batch Assigned',
+                message=f'You have been assigned to batch "{batch.batch_name}".',
+                target_url='/coach/batches'
+            )
 
     @action(detail=False, methods=['get'])
     def unassigned(self, request):
@@ -36,6 +74,27 @@ class BatchViewSet(viewsets.ModelViewSet):
         batches = Batch.objects.annotate(student_count=Count('enrollments')).filter(student_count__lt=F('max_students'))
         
         serializer = self.get_serializer(batches, many=True)
+    @action(detail=False, methods=['get'])
+    def happening_now(self, request):
+        """Find batches happening at this current day and time."""
+        from django.utils import timezone
+        import datetime
+        
+        # Day mapping
+        days_map = {
+            0: 'MON', 1: 'TUE', 2: 'WED', 3: 'THU', 4: 'FRI', 5: 'SAT', 6: 'SUN'
+        }
+        now = timezone.now()
+        current_day = days_map.get(now.weekday())
+        current_time = now.time()
+        
+        batches = Batch.objects.filter(
+            schedule_day=current_day,
+            start_time__lte=current_time,
+            end_time__gte=current_time,
+            status='ACTIVE'
+        )
+        serializer = self.get_serializer(batches, many=True)
         return Response(serializer.data)
 
 class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
@@ -53,7 +112,19 @@ class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Auto-set coach to current user if not provided (and if user is coach)
         if self.request.user.role == 'COACH':
-            serializer.save(coach=self.request.user)
+            app = serializer.save(coach=self.request.user)
+            # Notify admins
+            from apps.notifications.utils import create_notification
+            from apps.users.models import User
+            admins = User.objects.filter(role='ADMIN')
+            for admin in admins:
+                create_notification(
+                    user=admin,
+                    notification_type='ADMIN_ALERT',
+                    title='New Coach Application',
+                    message=f'Coach {app.coach.get_full_name()} has applied for batch {app.batch.batch_name}.',
+                    target_url='/admin/batches'
+                )
         else:
             serializer.save()
 
@@ -75,13 +146,20 @@ class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
         batch.save()
         
         # Trigger Notification
-        from apps.notifications.utils import create_notification
+        from apps.notifications.utils import create_notification, mark_stale_notifications
+        mark_stale_notifications('/admin/batches')
         create_notification(
             user=app.coach,
             notification_type='COACH_ALERT',
             title='Application Approved',
-            message=f'Your application for batch {batch.batch_name} has been approved.'
+            message=f'Your application for batch {batch.batch_name} has been approved.',
+            target_url='/coach/batches'
         )
+        
+        # Cleanup "New Batch Available" notifications for this batch if we want to be thorough,
+        # but the request said "if they login lately, the notification should not come".
+        # This implies we might want to delete or mark as read for all other coaches.
+        # For now, let's just mark the application notification.
         
         return Response({'status': 'approved'})
 
@@ -98,12 +176,14 @@ class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
         app.save()
         
         # Trigger Notification
-        from apps.notifications.utils import create_notification
+        from apps.notifications.utils import create_notification, mark_stale_notifications
+        mark_stale_notifications('/admin/batches')
         create_notification(
             user=app.coach,
             notification_type='COACH_ALERT',
             title='Application Rejected',
-            message=f'Your application for batch {app.batch.batch_name} has been rejected.'
+            message=f'Your application for batch {app.batch.batch_name} has been rejected.',
+            target_url='/coach/batches'
         )
         
         return Response({'status': 'rejected'})
@@ -130,10 +210,44 @@ class CoachAvailabilityViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role == 'COACH':
             return CoachAvailability.objects.filter(coach=user)
-        return CoachAvailability.objects.all()
+        if user.role in ['ADMIN', 'CLERK']:
+            return CoachAvailability.objects.all()
+        return CoachAvailability.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(coach=self.request.user)
+        if self.request.user.role != 'COACH':
+            raise PermissionDenied('Only coaches can set their availability.')
+        availability = serializer.save(coach=self.request.user)
+        # Notify admins about updated coach availability.
+        from apps.notifications.utils import create_notification
+        from apps.users.models import User
+        admins = User.objects.filter(role='ADMIN')
+        for admin in admins:
+            create_notification(
+                user=admin,
+                notification_type='ADMIN_ALERT',
+                title='New Coach Availability',
+                message=(
+                    f'Coach {availability.coach.get_full_name()} set availability for '
+                    f'{availability.day_of_week} ({availability.start_time}-{availability.end_time}).'
+                ),
+                target_url='/admin/schedule'
+            )
+
+    def perform_update(self, serializer):
+        if self.request.user.role != 'COACH':
+            raise PermissionDenied('Only coaches can update their availability.')
+        availability = self.get_object()
+        if availability.coach_id != self.request.user.id:
+            raise PermissionDenied('Unauthorized.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if self.request.user.role != 'COACH':
+            raise PermissionDenied('Only coaches can delete their availability.')
+        if instance.coach_id != self.request.user.id:
+            raise PermissionDenied('Unauthorized.')
+        instance.delete()
 
 class RescheduleRequestViewSet(viewsets.ModelViewSet):
     queryset = RescheduleRequest.objects.all()
@@ -173,12 +287,14 @@ class RescheduleRequestViewSet(viewsets.ModelViewSet):
                 print(f"Updated BatchEnrollment for student {reschedule.student}")
             
             # Trigger Notification
-            from apps.notifications.utils import create_notification
+            from apps.notifications.utils import create_notification, mark_stale_notifications
+            mark_stale_notifications('/admin/reschedule')
             create_notification(
                 user=reschedule.student.parent_user,
                 notification_type='BATCH',
                 title='Reschedule Approved',
-                message=f'Reschedule request for {reschedule.student.first_name} has been approved.'
+                message=f'Reschedule request for {reschedule.student.first_name} has been approved.',
+                target_url='/parent/students'
             )
             
             return Response({'status': 'approved'})
@@ -201,12 +317,14 @@ class RescheduleRequestViewSet(viewsets.ModelViewSet):
             reschedule.save()
             
             # Trigger Notification
-            from apps.notifications.utils import create_notification
+            from apps.notifications.utils import create_notification, mark_stale_notifications
+            mark_stale_notifications('/admin/reschedule')
             create_notification(
                 user=reschedule.student.parent_user,
                 notification_type='BATCH',
                 title='Reschedule Rejected',
-                message=f'Reschedule request for {reschedule.student.first_name} has been rejected.'
+                message=f'Reschedule request for {reschedule.student.first_name} has been rejected.',
+                target_url='/parent/students'
             )
             
             return Response({'status': 'rejected'})
@@ -217,6 +335,7 @@ class BatchEnrollmentViewSet(viewsets.ModelViewSet):
     queryset = BatchEnrollment.objects.all()
     serializer_class = BatchEnrollmentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['batch', 'student']
 
     def create(self, request, *args, **kwargs):

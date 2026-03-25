@@ -56,8 +56,18 @@ class TournamentRegistration(models.Model):
         PRESENT = 'PRESENT', _('Present')
         ABSENT = 'ABSENT', _('Absent')
 
+    class RegistrationStatus(models.TextChoices):
+        PENDING = 'PENDING', _('Pending')
+        APPROVED = 'APPROVED', _('Approved')
+        REJECTED = 'REJECTED', _('Rejected')
+
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='registrations')
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='tournament_registrations')
+    status = models.CharField(
+        max_length=10,
+        choices=RegistrationStatus.choices,
+        default=RegistrationStatus.PENDING
+    )
     registration_date = models.DateField(auto_now_add=True)
     
     # New fields for requirements

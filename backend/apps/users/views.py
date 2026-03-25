@@ -430,30 +430,51 @@ class UserListView(APIView):
     permission_classes = [permissions.IsAuthenticated] 
 
     def get(self, request):
-        """Get list of users."""
-        # Check permission: Only Admin or Clerk usually. 
-        # For now, let's restrict to Admin for general list, or check role.
+        """Get list of users with filtering support."""
         if not (request.user.is_admin() or request.user.is_clerk()):
              return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
 
         role = request.query_params.get('role')
-        users = User.objects.all()
+        search = request.query_params.get('search')
+        qualification = request.query_params.get('qualification')
+        status_param = request.query_params.get('status')
+        min_rate = request.query_params.get('min_rate')
+        max_rate = request.query_params.get('max_rate')
+
+        users = User.objects.all().select_related('profile')
         
         if role:
             users = users.filter(role=role.upper())
             
-        # Use UserSerializer for basic info, maybe need profile?
-        # UserSerializer includes role, name, email, phone.
-        # But for coaches we might want qualification etc. which are in profile.
-        # Ideally we return a rich object. 
-        # Let's map it manually or use a serializer that includes profile.
-        
+        if search:
+            from django.db.models import Q
+            users = users.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(username__icontains=search) |
+                Q(email__icontains=search)
+            )
+
+        if status_param:
+            is_active = status_param.lower() == 'active'
+            users = users.filter(is_active=is_active)
+
+        if qualification:
+            users = users.filter(profile__qualification__icontains=qualification)
+
+        if min_rate:
+            users = users.filter(profile__hourly_rate__gte=min_rate)
+            
+        if max_rate:
+            users = users.filter(profile__hourly_rate__lte=max_rate)
+
         data = []
         for user in users:
             user_data = UserSerializer(user).data
             # Inject profile data if available
             try:
-                if user.role == 'COACH':
+                # Coaches always have profile if created via RegisterView, but safety first
+                if hasattr(user, 'profile'):
                      profile = user.profile
                      user_data['qualification'] = profile.qualification
                      user_data['hourly_rate'] = profile.hourly_rate

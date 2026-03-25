@@ -3,27 +3,30 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from '../../api/axiosInstance';
+import NotificationTray from '../NotificationTray';
+import MarkAttendanceAlert from '../MarkAttendanceAlert';
+import NotificationAlert from '../NotificationAlert';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ClerkLayout = ({ children }) => {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [stats, setStats] = useState({ pending_students: 0 });
     const profileMenuRef = useRef(null);
 
     useEffect(() => {
-        fetchUnreadCount();
-        const interval = setInterval(fetchUnreadCount, 30000); // Check every 30s
+        fetchStats();
+        const interval = setInterval(fetchStats, 30000);
         return () => clearInterval(interval);
     }, []);
 
-    const fetchUnreadCount = async () => {
+    const fetchStats = async () => {
         try {
-            const response = await axios.get('/notifications/unread_count/');
-            setUnreadCount(response.data.count);
+            const response = await axios.get('/analytics/reports/dashboard_stats/');
+            setStats(response.data);
         } catch (error) {
-            console.error('Error fetching unread count:', error);
+            console.error('Error fetching dashboard stats:', error);
         }
     };
 
@@ -79,6 +82,9 @@ const ClerkLayout = ({ children }) => {
                                     <i className="bi bi-people-fill"></i>
                                     <span>Students</span>
                                 </div>
+                                {stats.pending_students > 0 && (
+                                    <span className="badge bg-primary-subtle text-primary rounded-pill" style={{ fontSize: '0.7rem' }}>{stats.pending_students}</span>
+                                )}
                             </div>
                         </NavLink>
                     </li>
@@ -118,6 +124,25 @@ const ClerkLayout = ({ children }) => {
                             Tournaments
                         </NavLink>
                     </li>
+                    <li className="nav-item">
+                        <NavLink
+                            to="/clerk/reschedule-requests"
+                            className={({ isActive }) =>
+                                `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
+                            }
+                            style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
+                        >
+                            <div className="d-flex align-items-center w-100 justify-content-between">
+                                <div className="d-flex align-items-center gap-3">
+                                    <i className="bi bi-exclamation-circle-fill"></i>
+                                    <span style={{ lineHeight: '1.2' }}>Reschedule<br />Approval</span>
+                                </div>
+                                {stats.pending_reschedules > 0 && (
+                                    <span className="badge bg-success rounded-pill" style={{ fontSize: '0.7rem' }}>{stats.pending_reschedules}</span>
+                                )}
+                            </div>
+                        </NavLink>
+                    </li>
                 </ul>
             </div>
 
@@ -128,14 +153,7 @@ const ClerkLayout = ({ children }) => {
                     <h5 className="m-0 fw-bold text-secondary">Clerk Dashboard</h5>
 
                     <div className="d-flex align-items-center gap-4">
-                        <Link to="/clerk/notifications" className="text-dark bg-transparent border-0 position-relative">
-                            <i className="bi bi-bell fs-5 text-secondary"></i>
-                            {unreadCount > 0 && (
-                                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style={{ fontSize: '0.6rem' }}>
-                                    {unreadCount}
-                                </span>
-                            )}
-                        </Link>
+                        <NotificationTray />
 
                         <div className="position-relative" ref={profileMenuRef}>
                             <button
@@ -172,6 +190,8 @@ const ClerkLayout = ({ children }) => {
 
                 {/* Page Content */}
                 <main className="p-4 flex-grow-1">
+                    <NotificationAlert />
+                    <MarkAttendanceAlert />
                     {children}
                 </main>
             </div>

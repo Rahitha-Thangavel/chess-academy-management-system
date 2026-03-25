@@ -10,11 +10,32 @@ const StudentManagement = () => {
     const [showModal, setShowModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [batches, setBatches] = useState([]);
 
     // Filters & Search
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
-    const [filters, setFilters] = useState({ grade_level: '', school: '' });
+    const [batchFilter, setBatchFilter] = useState('');
+    const [gradeFilter, setGradeFilter] = useState('');
+    const [schoolFilter, setSchoolFilter] = useState('');
+
+    // Debounced values
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [debouncedSchool, setDebouncedSchool] = useState('');
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSchool(schoolFilter);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [schoolFilter]);
 
     // Add Student Form
     const [newStudent, setNewStudent] = useState({
@@ -24,16 +45,33 @@ const StudentManagement = () => {
     useEffect(() => {
         fetchStudents();
         fetchPendingStudents();
-    }, [searchQuery, statusFilter]);
+        fetchBatches();
+    }, [debouncedSearch, statusFilter, batchFilter, gradeFilter, debouncedSchool, activeTab]);
+
+    const fetchBatches = async () => {
+        try {
+            const response = await axios.get('/batches/');
+            setBatches(response.data);
+        } catch (error) {
+            console.error('Error fetching batches:', error);
+        }
+    };
 
     const fetchStudents = async () => {
         try {
-            let query = '/students/?';
-            if (activeTab === 'database') query += 'status=ACTIVE&';
-            if (searchQuery) query += `search=${searchQuery}&`;
-            if (statusFilter) query += `status=${statusFilter}&`;
+            const params = new URLSearchParams();
 
-            const response = await axios.get(query);
+            if (activeTab === 'database' && !statusFilter) {
+                params.append('status', 'ACTIVE');
+            }
+            if (debouncedSearch) params.append('search', debouncedSearch);
+            if (statusFilter) params.append('status', statusFilter);
+            if (batchFilter) params.append('enrollments__batch', batchFilter);
+            if (gradeFilter) params.append('grade_level', gradeFilter);
+            if (debouncedSchool) params.append('school__icontains', debouncedSchool);
+
+            const queryString = params.toString();
+            const response = await axios.get(`/students/${queryString ? '?' + queryString : ''}`);
             setStudents(response.data);
         } catch (error) {
             console.error('Error fetching students:', error);
@@ -90,6 +128,14 @@ const StudentManagement = () => {
         }
     };
 
+    const handleResetFilters = () => {
+        setSearchQuery('');
+        setStatusFilter('');
+        setBatchFilter('');
+        setGradeFilter('');
+        setSchoolFilter('');
+    };
+
     const handleViewDetails = (student) => {
         setSelectedStudent(student);
         setShowModal(true);
@@ -104,85 +150,8 @@ const StudentManagement = () => {
                 </button>
             </div>
 
-            {/* Student Database Section */}
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                <div className="p-3 bg-light border-bottom">
-                    <h6 className="fw-bold m-0" style={{ color: '#6c9343' }}>Student Database</h6>
-                </div>
-
-                <div className="p-4">
-                    {/* Search & Filter */}
-                    <div className="d-flex gap-3 mb-4">
-                        <div className="input-group" style={{ maxWidth: '300px' }}>
-                            <input
-                                type="text"
-                                className="form-control border-end-0 bg-light"
-                                placeholder="Search students..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                            <span className="input-group-text bg-light border-start-0"><i className="bi bi-search"></i></span>
-                        </div>
-                        {/* Status Filter */}
-                        <select
-                            className="form-select bg-light border-0"
-                            style={{ maxWidth: '150px' }}
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="">All Status</option>
-                            <option value="ACTIVE">Active</option>
-                            <option value="INACTIVE">Inactive</option>
-                        </select>
-                    </div>
-
-                    {/* Table */}
-                    <div className="table-responsive">
-                        <table className="table table-hover align-middle mb-0">
-                            <thead className="bg-light text-secondary small fw-bold">
-                                <tr>
-                                    <th className="py-3 ps-4 border-0" style={{ width: '15%' }}>ID</th>
-                                    <th className="py-3 border-0" style={{ width: '20%' }}>Name</th>
-                                    <th className="py-3 border-0" style={{ width: '15%' }}>Class/Grade</th>
-                                    <th className="py-3 border-0" style={{ width: '20%' }}>School</th>
-                                    <th className="py-3 pe-4 text-end border-0" style={{ width: '15%' }}>Status</th>
-                                    <th className="py-3 pe-4 text-center border-0" style={{ width: '15%' }}>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {students.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="6" className="text-center py-4 text-muted">No students found.</td>
-                                    </tr>
-                                ) : (
-                                    students.map((stu) => (
-                                        <tr key={stu.id}>
-                                            <td className="ps-4">
-                                                <div className="fw-bold text-dark">{stu.id}</div>
-                                            </td>
-                                            <td className="fw-bold text-dark">{stu.first_name} {stu.last_name}</td>
-                                            <td className="text-secondary">{stu.grade_level || 'N/A'}</td>
-                                            <td className="text-secondary">{stu.school || 'N/A'}</td>
-                                            <td className="text-end pe-4">
-                                                <span className={`badge px-3 py-2 rounded-pill fw-normal ${stu.status === 'ACTIVE' ? 'bg-success' : 'bg-warning'}`}
-                                                    style={{ backgroundColor: stu.status === 'ACTIVE' ? '#6c9343 !important' : '' }}>
-                                                    {stu.status}
-                                                </span>
-                                            </td>
-                                            <td className="text-center">
-                                                <button className="btn btn-sm btn-light border fw-bold" onClick={() => handleViewDetails(stu)}>View</button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
             {/* Registration Queue Section */}
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
                 <div className="p-3 text-white d-flex justify-content-between align-items-center" style={{ backgroundColor: '#6c9343' }}>
                     <h6 className="fw-bold m-0">Registration Queue</h6>
                 </div>
@@ -217,6 +186,169 @@ const StudentManagement = () => {
                             </div>
                         ))
                     )}
+                </div>
+            </div>
+
+            {/* Student Database Section */}
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div className="p-3 bg-light border-bottom">
+                    <h6 className="fw-bold m-0" style={{ color: '#6c9343' }}>Student Database</h6>
+                </div>
+
+                <div className="p-4">
+                    {/* Search & Filter */}
+                    <div className="row g-3 mb-4 align-items-end">
+                        <div className="col-md-3">
+                            <label className="form-label small fw-bold">Search</label>
+                            <div className="input-group">
+                                <input
+                                    type="text"
+                                    className="form-control border-end-0 bg-light"
+                                    placeholder="Search by name, ID, school..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                <span className="input-group-text bg-light border-start-0"><i className="bi bi-search"></i></span>
+                            </div>
+                        </div>
+
+                        <div className="col-md-2">
+                            <label className="form-label small fw-bold">Status</label>
+                            <select
+                                className="form-select bg-light border-0"
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                            >
+                                <option value="">All Status</option>
+                                <option value="ACTIVE">Active</option>
+                                <option value="INACTIVE">Inactive</option>
+                                <option value="PENDING">Pending</option>
+                            </select>
+                        </div>
+
+                        <div className="col-md-2">
+                            <label className="form-label small fw-bold">Batch</label>
+                            <select
+                                className="form-select bg-light border-0"
+                                value={batchFilter}
+                                onChange={(e) => setBatchFilter(e.target.value)}
+                            >
+                                <option value="">All Batches</option>
+                                {batches.map(b => (
+                                    <option key={b.id} value={b.id}>{b.batch_name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="col-md-2">
+                            <label className="form-label small fw-bold">Grade</label>
+                            <select
+                                className="form-select bg-light border-0"
+                                value={gradeFilter}
+                                onChange={(e) => setGradeFilter(e.target.value)}
+                            >
+                                <option value="">All Grades</option>
+                                {[...Array(13)].map((_, i) => (
+                                    <option key={i + 1} value={`Grade ${i + 1}`}>Grade {i + 1}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="col-md-2">
+                            <label className="form-label small fw-bold">School</label>
+                            <input
+                                type="text"
+                                className="form-control bg-light border-0"
+                                placeholder="Filter by school..."
+                                value={schoolFilter}
+                                onChange={(e) => setSchoolFilter(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="col-md-1">
+                            <button
+                                className="btn btn-light border w-100 fw-bold"
+                                onClick={handleResetFilters}
+                                title="Reset Filters"
+                                style={{ height: '38px' }}
+                            >
+                                <i className="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="table-responsive">
+                        <style>
+                            {`
+                                .student-table {
+                                    border-collapse: collapse;
+                                    width: 100%;
+                                }
+                                .student-table th, .student-table td {
+                                    border: 1px solid #dee2e6;
+                                }
+                                .student-table th {
+                                    text-align: center !important;
+                                    vertical-align: middle;
+                                }
+                                .student-table td {
+                                    vertical-align: middle;
+                                }
+                            `}
+                        </style>
+                        <table className="table table-hover align-middle mb-0 student-table">
+                            <thead className="bg-light text-secondary small fw-bold">
+                                <tr>
+                                    <th className="py-3 ps-4" style={{ width: '10%' }}>ID</th>
+                                    <th className="py-3" style={{ width: '15%' }}>Name</th>
+                                    <th className="py-3" style={{ width: '10%' }}>Class/Grade</th>
+                                    <th className="py-3" style={{ width: '15%' }}>School</th>
+                                    <th className="py-3" style={{ width: '15%' }}>Batch</th>
+                                    <th className="py-3 pe-4" style={{ width: '10%' }}>Status</th>
+                                    <th className="py-3 pe-4" style={{ width: '10%' }}>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {students.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="7" className="text-center py-4 text-muted">No students found.</td>
+                                    </tr>
+                                ) : (
+                                    students.map((stu) => (
+                                        <tr key={stu.id}>
+                                            <td className="ps-4 text-center">
+                                                <div className="fw-bold text-dark">{stu.id}</div>
+                                            </td>
+                                            <td className="fw-bold text-dark">{stu.first_name} {stu.last_name}</td>
+                                            <td className="text-secondary text-center">{stu.grade_level || 'N/A'}</td>
+                                            <td className="text-secondary">{stu.school || 'N/A'}</td>
+                                            <td className="text-secondary">
+                                                {stu.batch_names && stu.batch_names.length > 0 ? (
+                                                    <div className="d-flex flex-wrap gap-1">
+                                                        {stu.batch_names.map((bn, idx) => (
+                                                            <span key={idx} className="badge bg-info text-white" style={{ fontSize: '0.75rem' }}>{bn}</span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted small">Not in any batch</span>
+                                                )}
+                                            </td>
+                                            <td className="text-center pe-4">
+                                                <span className={`badge px-3 py-2 rounded-pill fw-normal ${stu.status === 'ACTIVE' ? 'bg-success' : 'bg-warning'}`}
+                                                    style={{ backgroundColor: stu.status === 'ACTIVE' ? '#6c9343 !important' : '' }}>
+                                                    {stu.status}
+                                                </span>
+                                            </td>
+                                            <td className="text-center">
+                                                <button className="btn btn-sm btn-light border fw-bold" onClick={() => handleViewDetails(stu)}>View</button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
