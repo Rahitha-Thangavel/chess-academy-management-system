@@ -1,1 +1,67 @@
+# --- Django / Python ---
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Django local settings
+local_settings.py
+
+# Database
+db.sqlite3
+db.sqlite3-journal
+
+# Logs
+*.log
+*.bak
+
+# Media and Static files
+backend/media/
+backend/static/
+backend/notifs_output.txt
+backend/roles_output.txt
+backend/result.txt
+backend/test_output.txt
+backend/verify_result.txt
+backend/notification_debug.log
+backend/dump_result.txt
+
+# --- React / Vite / Node ---
+# Node Modules
+node_modules/
+frontend/node_modules/
+
+# Vite build output
+dist/
+frontend/dist/
+frontend/build/
+frontend/build_verify_*/
+
+# Vite temporary files
+.vite/
+.cache/
+frontend/.cache/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+frontend/.env
+backend/.env
+
+# --- IDE & OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
