@@ -6,11 +6,14 @@ const Salary = () => {
     const { user } = useAuth();
     const [salaryData, setSalaryData] = useState(null);
     const [history, setHistory] = useState([]);
+    const [trends, setTrends] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedPeriod, setSelectedPeriod] = useState('');
 
     useEffect(() => {
         fetchCurrentSalary();
         fetchSalaryHistory();
+        fetchSalaryTrends();
     }, []);
 
     const fetchCurrentSalary = async () => {
@@ -37,6 +40,32 @@ const Salary = () => {
             setLoading(false);
         }
     };
+
+    const fetchSalaryTrends = async () => {
+        try {
+            const response = await axios.get('/analytics/reports/coach_salary_summary/');
+            setTrends(response.data?.trend || []);
+        } catch (error) {
+            console.error('Error fetching salary trends:', error);
+        }
+    };
+
+    const availablePeriods = React.useMemo(() => {
+        const periods = [...new Set(history.map((row) => row.payment_period).filter(Boolean))];
+        return periods.sort((a, b) => new Date(`1 ${b}`) - new Date(`1 ${a}`));
+    }, [history]);
+
+    useEffect(() => {
+        if (!selectedPeriod && availablePeriods.length > 0) {
+            setSelectedPeriod(availablePeriods[0]);
+        }
+    }, [availablePeriods, selectedPeriod]);
+
+    const visibleHistory = React.useMemo(() => (
+        selectedPeriod
+            ? history.filter((row) => row.payment_period === selectedPeriod)
+            : history
+    ), [history, selectedPeriod]);
 
     return (
         <div className="container-fluid p-0">
@@ -75,8 +104,31 @@ const Salary = () => {
                 </div>
             </div>
 
-            <h5 className="fw-bold mb-3">Payment History (Finalized)</h5>
+            <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+                <div>
+                    <h5 className="fw-bold mb-1">Monthly Salary History</h5>
+                    <div className="small text-muted">Each row represents one monthly salary record.</div>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                    <span className="small fw-semibold text-secondary">Salary Month</span>
+                    <select
+                        className="form-select"
+                        style={{ minWidth: '180px' }}
+                        value={selectedPeriod}
+                        onChange={(e) => setSelectedPeriod(e.target.value)}
+                    >
+                        {availablePeriods.map((period) => (
+                            <option key={period} value={period}>{period}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div className="px-4 pt-4">
+                    <div className="alert alert-light border mb-0">
+                        <strong>Selected payroll month:</strong> {selectedPeriod || 'No month selected'}
+                    </div>
+                </div>
                 <div className="table-responsive">
                     <table className="table table-hover align-middle mb-0">
                         <thead className="bg-light text-secondary small fw-bold">
@@ -89,17 +141,19 @@ const Salary = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {history.length === 0 ? (
+                            {visibleHistory.length === 0 ? (
                                 <tr><td colSpan="5" className="text-center py-4">No finalized records yet.</td></tr>
                             ) : (
-                                history.map((row) => (
+                                visibleHistory.map((row) => (
                                     <tr key={row.id}>
                                         <td className="ps-4 fw-bold">{row.payment_period}</td>
-                                        <td>{row.total_hours}</td>
+                                        <td>{row.total_hours} hrs</td>
                                         <td>LKR {row.hourly_rate}</td>
-                                        <td className="fw-bold">LKR {(parseFloat(row.total_hours) * parseFloat(row.hourly_rate)).toFixed(2)}</td>
+                                        <td className="fw-bold">LKR {row.net_amount || (parseFloat(row.total_hours) * parseFloat(row.hourly_rate)).toFixed(2)}</td>
                                         <td className="text-end pe-4">
-                                            <span className="badge bg-success rounded-pill px-3">PAID</span>
+                                            <span className={`badge rounded-pill px-3 ${row.status === 'PAID' ? 'bg-success' : row.status === 'PROCESSING' ? 'bg-warning text-dark' : 'bg-secondary'}`}>
+                                                {row.status}
+                                            </span>
                                         </td>
                                     </tr>
                                 ))
@@ -107,6 +161,25 @@ const Salary = () => {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            <h5 className="fw-bold mb-3 mt-5">Salary Trends</h5>
+            <div className="row g-3">
+                {trends.length === 0 ? (
+                    <div className="col-12">
+                        <div className="card border-0 shadow-sm rounded-4 p-4 text-center text-muted">No trend data available yet.</div>
+                    </div>
+                ) : (
+                    trends.map((trend) => (
+                        <div key={trend.payment_period} className="col-md-4">
+                            <div className="card border-0 shadow-sm rounded-4 p-4 h-100">
+                                <small className="text-secondary fw-bold text-uppercase">{trend.payment_period}</small>
+                                <h4 className="fw-bold mt-2 mb-1">LKR {Number(trend.total_net || 0).toFixed(2)}</h4>
+                                <div className="small text-muted">Average net: LKR {Number(trend.average_net || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );

@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { normalizeNotificationTarget } from '../../utils/notificationRoutes';
 
 const ParentDashboard = () => {
   const { user } = useAuth();
+  const { markRead } = useNotifications();
   const navigate = useNavigate();
   const [statsData, setStatsData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,12 +32,14 @@ const ParentDashboard = () => {
   const handleNotificationClick = async (notif) => {
     try {
       if (!notif.is_read) {
-        await axios.post(`/api/notifications/${notif.id}/mark_read/`);
+        await markRead(notif.id);
       }
-      if (notif.target_url) navigate(notif.target_url);
+      const targetUrl = normalizeNotificationTarget(notif.target_url);
+      if (targetUrl) navigate(targetUrl);
     } catch (err) {
       console.error('Error marking notification as read:', err);
-      if (notif.target_url) navigate(notif.target_url);
+      const targetUrl = normalizeNotificationTarget(notif.target_url);
+      if (targetUrl) navigate(targetUrl);
     }
   };
 

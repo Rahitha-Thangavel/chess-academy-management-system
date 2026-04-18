@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import axios from '../api/axiosInstance';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import { normalizeNotificationTarget } from '../utils/notificationRoutes';
 
 const NotificationAlert = () => {
     const [unreadNotifications, setUnreadNotifications] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [lastCheckedCount, setLastCheckedCount] = useState(0);
     const { user } = useAuth();
+    const { unreadNotifications: sharedUnread, fetchNotifications, markRead } = useNotifications();
     const navigate = useNavigate();
-    const location = useLocation();
 
     useEffect(() => {
         if (user) {
-            // Initial check on login/mount
             checkNotifications();
-
-            // Poll for new notifications while online
             const interval = setInterval(checkNotifications, 30000); // Check every 30s
             return () => clearInterval(interval);
         }
@@ -24,10 +22,9 @@ const NotificationAlert = () => {
 
     const checkNotifications = async () => {
         try {
-            const response = await axios.get('/api/notifications/');
-            const unread = response.data.filter(n => !n.is_read);
+            const fetched = await fetchNotifications();
+            const unread = (fetched || []).filter(n => !n.is_read);
 
-            // Show modal if there are NEW unread notifications or it's the first load
             if (unread.length > 0 && unread.length > lastCheckedCount) {
                 setUnreadNotifications(unread);
                 setShowModal(true);
@@ -38,10 +35,21 @@ const NotificationAlert = () => {
         }
     };
 
-    const handleAction = (notif) => {
+    useEffect(() => {
+        if (sharedUnread.length === 0) {
+            setUnreadNotifications([]);
+            setShowModal(false);
+        }
+    }, [sharedUnread]);
+
+    const handleAction = async (notif) => {
         setShowModal(false);
-        if (notif && notif.target_url) {
-            navigate(notif.target_url);
+        if (notif?.id) {
+            await markRead(notif.id);
+        }
+        const targetUrl = normalizeNotificationTarget(notif?.target_url);
+        if (targetUrl) {
+            navigate(targetUrl);
         }
     };
 

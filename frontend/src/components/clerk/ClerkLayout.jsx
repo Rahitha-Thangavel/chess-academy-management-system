@@ -12,7 +12,7 @@ const ClerkLayout = ({ children }) => {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
-    const [stats, setStats] = useState({ pending_students: 0 });
+    const [stats, setStats] = useState({ pending_students: 0, pending_reschedules: 0 });
     const profileMenuRef = useRef(null);
 
     useEffect(() => {
@@ -23,8 +23,20 @@ const ClerkLayout = ({ children }) => {
 
     const fetchStats = async () => {
         try {
-            const response = await axios.get('/analytics/reports/dashboard_stats/');
-            setStats(response.data);
+            const [pendingStudentsRes, reschedulesRes] = await Promise.all([
+                axios.get('/students/pending/'),
+                axios.get('/reschedule-requests/'),
+            ]);
+
+            const pendingStudents = Array.isArray(pendingStudentsRes.data) ? pendingStudentsRes.data.length : 0;
+            const pendingReschedules = Array.isArray(reschedulesRes.data)
+                ? reschedulesRes.data.filter((request) => request.status === 'PENDING').length
+                : 0;
+
+            setStats({
+                pending_students: pendingStudents,
+                pending_reschedules: pendingReschedules,
+            });
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
         }
@@ -49,11 +61,11 @@ const ClerkLayout = ({ children }) => {
     };
 
     return (
-        <div className="d-flex" style={{ minHeight: '100vh', backgroundColor: '#f5f6f8' }}>
+        <div className="d-flex bg-light" style={{ minHeight: '100vh', width: '100%' }}>
             {/* Sidebar */}
             <div className="bg-white" style={{ width: '280px', minHeight: '100vh', position: 'fixed', zIndex: 1000 }}>
-                <div className="p-4 mb-2">
-                    <h5 className="fw-bold text-success m-0" style={{ color: '#6c9343' }}>AAA Grand Master</h5>
+                <div className="p-4 mb-2 text-center" style={{ backgroundColor: '#6c9343', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <h5 className="fw-bold m-0 text-white">AAA Grand Master</h5>
                 </div>
 
                 <ul className="nav flex-column gap-2 px-2">
@@ -80,7 +92,7 @@ const ClerkLayout = ({ children }) => {
                             <div className="d-flex align-items-center w-100 justify-content-between">
                                 <div className="d-flex align-items-center gap-3">
                                     <i className="bi bi-people-fill"></i>
-                                    <span>Students</span>
+                                    <span>Student Management</span>
                                 </div>
                                 {stats.pending_students > 0 && (
                                     <span className="badge bg-primary-subtle text-primary rounded-pill" style={{ fontSize: '0.7rem' }}>{stats.pending_students}</span>
@@ -102,6 +114,18 @@ const ClerkLayout = ({ children }) => {
                     </li>
                     <li className="nav-item">
                         <NavLink
+                            to="/clerk/batches"
+                            className={({ isActive }) =>
+                                `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
+                            }
+                            style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
+                        >
+                            <i className="bi bi-collection-fill"></i>
+                            Batches
+                        </NavLink>
+                    </li>
+                    <li className="nav-item">
+                        <NavLink
                             to="/clerk/payments"
                             className={({ isActive }) =>
                                 `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
@@ -109,7 +133,7 @@ const ClerkLayout = ({ children }) => {
                             style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
                         >
                             <i className="bi bi-currency-dollar"></i>
-                            Payments
+                            Payments & Finance
                         </NavLink>
                     </li>
                     <li className="nav-item">
@@ -149,22 +173,23 @@ const ClerkLayout = ({ children }) => {
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column" style={{ marginLeft: '280px' }}>
                 {/* Header */}
-                <header className="border-bottom py-3 px-4 d-flex justify-content-between align-items-center sticky-top bg-white">
-                    <h5 className="m-0 fw-bold text-secondary">Clerk Dashboard</h5>
+                <header className="border-bottom py-3 px-4 d-flex justify-content-between align-items-center sticky-top" style={{ backgroundColor: '#6c9343', color: 'white' }}>
+                    <div></div>
 
                     <div className="d-flex align-items-center gap-4">
                         <NotificationTray />
 
                         <div className="position-relative" ref={profileMenuRef}>
                             <button
-                                className="btn d-flex align-items-center gap-2 text-dark border-0 bg-transparent"
+                                className="btn d-flex align-items-center gap-2 text-white border-0 bg-transparent"
                                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                             >
-                                <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
-                                    style={{ width: '35px', height: '35px', backgroundColor: '#6c9343' }}>
+                                <div className="bg-white text-success rounded-circle d-flex align-items-center justify-content-center fw-bold"
+                                    style={{ width: '32px', height: '32px' }}>
                                     {user?.username ? user.username.charAt(0) : 'C'}
                                 </div>
-                                <span className="d-none d-md-block small fw-bold">{user?.username || 'Clerk'}</span>
+                                <span className="text-white fw-bold">{user?.username || 'Clerk'}</span>
+                                <i className="bi bi-chevron-down small text-white"></i>
                             </button>
 
                             {showProfileMenu && (
@@ -176,6 +201,7 @@ const ClerkLayout = ({ children }) => {
                                     <Link to="/clerk/profile" className="dropdown-item px-3 py-2 text-dark d-flex align-items-center gap-2">
                                         <i className="bi bi-person"></i> View Profile
                                     </Link>
+                                    <div className="dropdown-divider my-2"></div>
                                     <button
                                         className="dropdown-item px-3 py-2 text-danger d-flex align-items-center gap-2"
                                         onClick={handleLogout}

@@ -1,18 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { normalizeNotificationTarget } from '../../utils/notificationRoutes';
+import { useAppUI } from '../../contexts/AppUIContext';
+import AttendanceTrackerCard from '../../components/attendance/AttendanceTrackerCard';
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ basePath = '/admin' }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { markRead } = useNotifications();
+  const { notifyInfo } = useAppUI();
   const [statsData, setStatsData] = useState(null);
+  const [batches, setBatches] = useState([]);
+  const [recordedBatchIds, setRecordedBatchIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await axios.get('/analytics/reports/dashboard_stats/');
-        setStatsData(response.data);
+        const today = new Date().toISOString().split('T')[0];
+        const [statsRes, batchesRes, attendanceRes] = await Promise.all([
+          axios.get('/analytics/reports/dashboard_stats/'),
+          axios.get('/batches/'),
+          axios.get(`/student-attendance/?attendance_date=${today}`),
+        ]);
+
+        setStatsData(statsRes.data);
+        setBatches(Array.isArray(batchesRes.data) ? batchesRes.data : []);
+        setRecordedBatchIds([
+          ...new Set((Array.isArray(attendanceRes.data) ? attendanceRes.data : []).map((record) => record.batch)),
+        ]);
       } catch (err) {
         console.error('Error fetching dashboard stats:', err);
         setError(err.response?.data?.error || err.message || 'Failed to load dashboard data');
@@ -33,25 +53,34 @@ const AdminDashboard = () => {
     { label: 'Pending Actions', value: statsData.pending_actions, icon: 'bi-exclamation-triangle', bg: 'bg-warning-subtle text-warning' },
     { label: 'Notifications', value: statsData.notifications, icon: 'bi-bell', bg: 'bg-light text-success' },
     { label: "Today's Classes", value: statsData.todays_classes, icon: 'bi-calendar-event', bg: 'bg-light text-success' },
+    { label: "Today's Tournaments", value: statsData.todays_tournaments?.length || 0, icon: 'bi-trophy', bg: 'bg-light text-success' },
     { label: 'Payments Due', value: `LKR ${Number(statsData.payments_due).toLocaleString()}`, icon: 'bi-currency-dollar', bg: 'bg-light text-success' }
   ];
 
   const handleNotificationClick = async (notif) => {
     try {
       if (!notif.is_read) {
-        await axios.post(`/api/notifications/${notif.id}/mark_read/`);
+        await markRead(notif.id);
       }
-      if (notif.target_url) window.location.href = notif.target_url;
+      const targetUrl = normalizeNotificationTarget(notif.target_url);
+      if (targetUrl) navigate(targetUrl);
     } catch (err) {
       console.error('Error marking notification as read:', err);
-      // Fallback: still navigate
-      if (notif.target_url) window.location.href = notif.target_url;
+      const targetUrl = normalizeNotificationTarget(notif.target_url);
+      if (targetUrl) navigate(targetUrl);
     }
   };
 
   return (
     <div className="container-fluid p-0">
       <h3 className="fw-bold mb-2 text-success" style={{ color: '#6c9343' }}>Welcome, {user?.username || 'Admin'}</h3>
+
+      <AttendanceTrackerCard
+        batches={batches}
+        recordedBatchIds={recordedBatchIds}
+        notifyInfo={notifyInfo}
+        onOpenBatch={(batch) => navigate(`${basePath}/attendance`, { state: { batchId: batch.id } })}
+      />
 
       <div className="row g-4 mt-2">
         {/* Left Column: Stats & Notifications */}
@@ -100,6 +129,34 @@ const AdminDashboard = () => {
                       </small>
                     </div>
                     <p className="mb-0 small text-secondary mt-1">{notif.message}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="card border-0 shadow-sm rounded-4 mt-3 overflow-hidden">
+            <div className="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+              <h6 className="fw-bold m-0" style={{ color: '#6c9343' }}>Today's Tournaments</h6>
+              <span className="badge rounded-pill bg-success" style={{ backgroundColor: '#6c9343' }}>{statsData.todays_tournaments?.length || 0}</span>
+            </div>
+            <div className="p-3 d-flex flex-column gap-3">
+              {!statsData.todays_tournaments || statsData.todays_tournaments.length === 0 ? (
+                <div className="text-center text-muted py-3">No tournaments scheduled today.</div>
+              ) : (
+                statsData.todays_tournaments.map((tournament) => (
+                  <div key={tournament.id} className="p-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
+                    <div>
+                      <div className="fw-bold">{tournament.title}</div>
+                      <div className="small text-muted">{tournament.time} • {tournament.venue}</div>
+                    </div>
+                    <button
+                      className={`btn btn-sm fw-bold ${tournament.can_manage ? 'btn-success text-white' : 'btn-outline-secondary'}`}
+                      style={tournament.can_manage ? { backgroundColor: '#6c9343', border: 'none' } : {}}
+                      onClick={() => navigate(`${basePath}/tournaments`)}
+                    >
+                      {tournament.can_manage ? 'Manage now' : tournament.status}
+                    </button>
                   </div>
                 ))
               )}

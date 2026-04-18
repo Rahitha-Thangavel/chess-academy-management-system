@@ -3,11 +3,14 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from apps.students.models import Student
+from datetime import time
 
 class Tournament(models.Model):
     id = models.CharField(primary_key=True, max_length=20, editable=False)
     tournament_name = models.CharField(max_length=100)
     tournament_date = models.DateField()
+    start_time = models.TimeField(default=time(9, 0))
+    end_time = models.TimeField(default=time(17, 0))
     venue = models.CharField(max_length=255, blank=True, null=True)
     entry_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     created_by_user = models.ForeignKey(

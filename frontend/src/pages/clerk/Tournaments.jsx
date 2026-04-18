@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { Modal, Button, Form, Table, Tabs, Tab } from 'react-bootstrap';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const Tournaments = () => {
+    const { notifySuccess, notifyError, notifyInfo } = useAppUI();
     const [tournaments, setTournaments] = useState([]);
     const [registrations, setRegistrations] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -66,7 +68,7 @@ const Tournaments = () => {
     const fetchRegistrations = async () => {
         try {
             const response = await axios.get('/registrations/');
-            setRegistrations(response.data.filter(r => r.payment_status === 'PENDING'));
+            setRegistrations(response.data.filter(r => r.status === 'PENDING'));
         } catch (error) {
             console.error('Error fetching registrations:', error);
         } finally {
@@ -106,12 +108,37 @@ const Tournaments = () => {
 
     const handleApproveRegistration = async (id) => {
         try {
-            await axios.post(`/registrations/${id}/record_fee/`);
-            alert('Registration approved and fee recorded.');
+            await axios.post(`/registrations/${id}/approve/`);
+            notifySuccess('Registration approved.');
             fetchRegistrations();
             if (selectedTournamentId) fetchTournamentParticipants(selectedTournamentId);
         } catch (error) {
             console.error('Error approving registration:', error);
+            notifyError(error.response?.data?.detail || 'Failed to approve registration.');
+        }
+    };
+
+    const handleRejectRegistration = async (id) => {
+        try {
+            await axios.post(`/registrations/${id}/reject/`);
+            notifySuccess('Registration rejected.');
+            fetchRegistrations();
+            if (selectedTournamentId) fetchTournamentParticipants(selectedTournamentId);
+        } catch (error) {
+            console.error('Error rejecting registration:', error);
+            notifyError(error.response?.data?.detail || 'Failed to reject registration.');
+        }
+    };
+
+    const handleRecordFee = async (id) => {
+        try {
+            await axios.post(`/registrations/${id}/record_fee/`);
+            notifySuccess('Registration approved and fee recorded.');
+            fetchRegistrations();
+            if (selectedTournamentId) fetchTournamentParticipants(selectedTournamentId);
+        } catch (error) {
+            console.error('Error recording fee:', error);
+            notifyError(error.response?.data?.detail || 'Failed to record fee.');
         }
     };
 
@@ -124,14 +151,14 @@ const Tournaments = () => {
         try {
             const attendance_status = attendanceEdits[registrationId];
             if (!attendance_status) {
-                alert('Please select PRESENT or ABSENT.');
+                notifyInfo('Please select PRESENT or ABSENT.');
                 return;
             }
             await axios.post(`/registrations/${registrationId}/record_attendance/`, { attendance_status });
             await fetchTournamentParticipants(selectedTournamentId);
         } catch (error) {
             console.error('Failed to save attendance:', error);
-            alert('Failed to save attendance.');
+            notifyError('Failed to save attendance.');
         }
     };
 
@@ -170,18 +197,18 @@ const Tournaments = () => {
             fetchTournamentParticipants(selectedTournamentId);
         } catch (error) {
             console.error('Failed to record match result:', error);
-            alert('Failed to record match result.');
+            notifyError('Failed to record match result.');
         }
     };
 
     const submitAddMatch = async () => {
         try {
             if (!addMatchForm.player1 || !addMatchForm.player2) {
-                alert('Select both players.');
+                notifyInfo('Select both players.');
                 return;
             }
             if (addMatchForm.player1 === addMatchForm.player2) {
-                alert('Player1 and Player2 must be different.');
+                notifyInfo('Player 1 and Player 2 must be different.');
                 return;
             }
 
@@ -198,7 +225,7 @@ const Tournaments = () => {
             fetchTournamentMatches(selectedTournamentId);
         } catch (error) {
             console.error('Failed to add match:', error);
-            alert('Failed to add match.');
+            notifyError('Failed to add match.');
         }
     };
 
@@ -227,7 +254,7 @@ const Tournaments = () => {
                                                         <i className="bi bi-calendar-event text-secondary"></i>
                                                         <div>
                                                             <small className="fw-bold d-block">Date & Location</small>
-                                                            <small className="text-muted">{new Date(t.tournament_date).toLocaleDateString()} • {t.venue || 'TBD'}</small>
+                                                            <small className="text-muted">{new Date(t.tournament_date).toLocaleDateString()} • {t.start_time?.slice(0, 5)} - {t.end_time?.slice(0, 5)} • {t.venue || 'TBD'}</small>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -294,6 +321,18 @@ const Tournaments = () => {
                                                 onClick={() => handleApproveRegistration(req.id)}
                                             >
                                                 Approve
+                                            </button>
+                                            <button
+                                                className="btn btn-sm btn-outline-success fw-bold px-3"
+                                                onClick={() => handleRecordFee(req.id)}
+                                            >
+                                                Approve + Fee
+                                            </button>
+                                            <button
+                                                className="btn btn-sm btn-outline-danger fw-bold px-3"
+                                                onClick={() => handleRejectRegistration(req.id)}
+                                            >
+                                                Reject
                                             </button>
                                         </div>
                                     </div>
@@ -386,11 +425,10 @@ const Tournaments = () => {
                                 <Tab eventKey="matches" title="Match Results">
                                     <div className="d-flex justify-content-end mb-3">
                                         <Button
-                                            variant="success"
-                                            onClick={() => setShowAddMatchModal(true)}
-                                            disabled={tournamentParticipants.length < 2}
+                                            variant="outline-secondary"
+                                            disabled
                                         >
-                                            Add Match
+                                            Admin Only
                                         </Button>
                                     </div>
 
@@ -419,9 +457,7 @@ const Tournaments = () => {
                                                         <td className="fw-bold">{m.winner_name || '-'}</td>
                                                         <td className="small text-secondary">{m.result_details || '-'}</td>
                                                         <td className="text-end">
-                                                            <Button size="sm" variant="outline-primary" onClick={() => openRecordResult(m)}>
-                                                                Record Result
-                                                            </Button>
+                                                            <span className="small text-muted">Final results managed by Admin</span>
                                                         </td>
                                                     </tr>
                                                 ))

@@ -1,23 +1,49 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from '../../api/axiosInstance';
 import NotificationTray from '../NotificationTray';
 import NotificationAlert from '../NotificationAlert';
+import { useAppUI } from '../../contexts/AppUIContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const CoachLayout = ({ children }) => {
     const { logout, user } = useAuth();
+    const { notifyError, notifySuccess } = useAppUI();
     const navigate = useNavigate();
+    const location = useLocation();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [stats, setStats] = useState({ pending_attendance: 0 });
+    const [activeSession, setActiveSession] = useState(null);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const profileMenuRef = useRef(null);
 
     useEffect(() => {
         fetchStats();
+        fetchActiveSession();
         const interval = setInterval(fetchStats, 30000);
-        return () => clearInterval(interval);
+        const sessionInterval = setInterval(fetchActiveSession, 15000);
+        return () => {
+            clearInterval(interval);
+            clearInterval(sessionInterval);
+        };
     }, []);
+
+    useEffect(() => {
+        if (!activeSession?.clock_in_time) {
+            setElapsedSeconds(0);
+            return undefined;
+        }
+
+        const syncElapsed = () => {
+            const diff = Math.floor((new Date() - new Date(activeSession.clock_in_time)) / 1000);
+            setElapsedSeconds(diff > 0 ? diff : 0);
+        };
+
+        syncElapsed();
+        const interval = setInterval(syncElapsed, 1000);
+        return () => clearInterval(interval);
+    }, [activeSession?.clock_in_time]);
 
     const fetchStats = async () => {
         try {
@@ -25,6 +51,38 @@ const CoachLayout = ({ children }) => {
             setStats(response.data);
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
+        }
+    };
+
+    const fetchActiveSession = async () => {
+        try {
+            const response = await axios.get('/coaches/');
+            const today = new Date().toISOString().split('T')[0];
+            const runningRecord = response.data.find(
+                (record) => record.date === today && record.clock_in_time && !record.clock_out_time
+            );
+            setActiveSession(runningRecord || null);
+        } catch (error) {
+            console.error('Error fetching active coach session:', error);
+        }
+    };
+
+    const formatElapsed = (totalSeconds) => {
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const handleStopSession = async () => {
+        if (!activeSession) return;
+        try {
+            await axios.post('/coaches/clock_out/', { batch_id: activeSession.batch });
+            notifySuccess('Class ended successfully.');
+            fetchActiveSession();
+        } catch (error) {
+            console.error('Error ending coach session:', error);
+            notifyError(error.response?.data?.error || 'Unable to end the running class.');
         }
     };
 
@@ -175,6 +233,40 @@ const CoachLayout = ({ children }) => {
                 {/* Page Content */}
                 <main className="p-4 flex-grow-1">
                     <NotificationAlert />
+                    {activeSession && location.pathname !== '/coach/mark-attendance' && (
+                        <div
+                            className="mb-4 rounded-4 border-0 shadow-sm p-3 d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3"
+                            style={{ background: 'linear-gradient(135deg, #f4faee 0%, #ffffff 100%)' }}
+                        >
+                            <div>
+                                <div className="small fw-bold text-success text-uppercase mb-1">Class In Progress</div>
+                                <div className="h5 fw-bold mb-1">{activeSession.batch_name}</div>
+                                <div className="text-muted">
+                                    Started at {new Date(activeSession.clock_in_time).toLocaleTimeString()} | Running for {formatElapsed(elapsedSeconds)}
+                                </div>
+                            </div>
+                            <div className="d-flex flex-wrap gap-2">
+                                <button
+                                    className="btn btn-outline-success fw-semibold"
+                                    onClick={() => navigate('/coach/mark-attendance', {
+                                        state: {
+                                            batchId: activeSession.batch,
+                                            batchName: activeSession.batch_name,
+                                        },
+                                    })}
+                                >
+                                    Open Timer
+                                </button>
+                                <button
+                                    className="btn btn-success fw-semibold"
+                                    style={{ backgroundColor: '#6c9343', borderColor: '#6c9343' }}
+                                    onClick={handleStopSession}
+                                >
+                                    End Class
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     {children}
                 </main>
             </div>

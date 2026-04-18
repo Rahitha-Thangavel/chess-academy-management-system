@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { Modal, Button, Form } from 'react-bootstrap';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const Schedule = () => {
+    const { notifySuccess, notifyError } = useAppUI();
     const [batches, setBatches] = useState([]);
     const [coaches, setCoaches] = useState([]);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -13,6 +15,16 @@ const Schedule = () => {
         fetchBatches();
         fetchCoaches();
     }, []);
+
+    const dayLabels = {
+        MON: 'Monday',
+        TUE: 'Tuesday',
+        WED: 'Wednesday',
+        THU: 'Thursday',
+        FRI: 'Friday',
+        SAT: 'Saturday',
+        SUN: 'Sunday',
+    };
 
     const fetchBatches = async () => {
         try {
@@ -43,21 +55,22 @@ const Schedule = () => {
         e.preventDefault();
         try {
             await axios.put(`/batches/${currentBatch.id}/`, currentBatch);
-            alert('Batch updated successfully!');
+            notifySuccess('Batch updated successfully.');
             setShowEditModal(false);
             fetchBatches();
         } catch (error) {
             console.error('Error updating batch:', error);
-            alert('Failed to update batch.');
+            notifyError('Failed to update batch.');
         }
     };
 
     // Group batches by day
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     const groupedBatches = {};
     days.forEach(day => {
-        groupedBatches[day] = batches.filter(b => b.schedule_day === day.toUpperCase());
+        groupedBatches[day] = batches.filter(b => b.schedule_day === day);
     });
+    const oneTimeBatches = batches.filter((batch) => batch.batch_type === 'ONE_TIME');
 
     return (
         <div className="container-fluid p-0">
@@ -66,11 +79,33 @@ const Schedule = () => {
             </div>
 
             <div className="d-flex flex-column gap-4">
+                {oneTimeBatches.length > 0 && (
+                    <div>
+                        <div className="p-2 text-white px-3 rounded-top-3" style={{ backgroundColor: '#7da65d', width: 'fit-content', minWidth: '180px' }}>
+                            <h6 className="fw-bold m-0">One-time Classes</h6>
+                        </div>
+                        <div className="p-3 bg-light rounded-end-3 rounded-bottom-3 border-start border-5 border-success" style={{ borderColor: '#6c9343 !important' }}>
+                            <div className="d-flex flex-column gap-2">
+                                {oneTimeBatches.map((b) => (
+                                    <div key={b.id} className="bg-white p-3 rounded-3 shadow-sm d-flex justify-content-between align-items-center">
+                                        <div className="d-flex align-items-center gap-4 flex-grow-1">
+                                            <div className="text-secondary small fw-bold" style={{ minWidth: '120px' }}>{b.start_time} - {b.end_time}</div>
+                                            <div className="fw-bold text-dark flex-grow-1">{b.batch_name}</div>
+                                            <div className="text-secondary small">Date: {b.exact_date || 'N/A'}</div>
+                                            <div className="text-secondary small">Coach: {b.coach_name}</div>
+                                        </div>
+                                        <button className="btn btn-sm btn-outline-success" onClick={() => handleEditClick(b)}>Adjust Time/Coach</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {days.map((day) => (
                     groupedBatches[day].length > 0 && (
                         <div key={day}>
                             <div className="p-2 text-white px-3 rounded-top-3" style={{ backgroundColor: '#7da65d', width: 'fit-content', minWidth: '150px' }}>
-                                <h6 className="fw-bold m-0">{day}</h6>
+                                <h6 className="fw-bold m-0">{dayLabels[day]}</h6>
                             </div>
                             <div className="p-3 bg-light rounded-end-3 rounded-bottom-3 border-start border-5 border-success" style={{ borderColor: '#6c9343 !important' }}>
                                 <div className="d-flex flex-column gap-2">
@@ -114,7 +149,7 @@ const Schedule = () => {
                             </div>
                             <Form.Group className="mb-3">
                                 <Form.Label>Assign Coach</Form.Label>
-                                <Form.Select value={currentBatch.coach} onChange={(e) => setCurrentBatch({ ...currentBatch, coach: e.target.value })}>
+                                <Form.Select value={currentBatch.coach_user || ''} onChange={(e) => setCurrentBatch({ ...currentBatch, coach_user: e.target.value || null })}>
                                     <option value="">Select Coach...</option>
                                     {coaches.map(c => (
                                         <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>

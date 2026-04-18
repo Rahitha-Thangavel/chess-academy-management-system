@@ -3,9 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
+from django.utils.dateparse import parse_date
 from .models import Attendance, CoachAttendance
 from .serializers import AttendanceSerializer, CoachAttendanceSerializer
+from .utils import academy_now, get_batch_attendance_window
 from apps.students.models import Student
+from apps.batches.models import Batch
 from rest_framework.exceptions import PermissionDenied
 
 class AttendanceViewSet(viewsets.ModelViewSet):
@@ -78,11 +81,27 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
         batch_id = request.data.get('batch_id')
-        date = request.data.get('date', timezone.now().date())
+        date = request.data.get('date', academy_now().date())
         attendance_data = request.data.get('attendance', []) # List of {student_id: status}
 
         if not batch_id:
             return Response({'error': 'batch_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            batch = Batch.objects.get(id=batch_id)
+        except Batch.DoesNotExist:
+            return Response({'error': 'Batch not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if isinstance(date, str):
+            parsed_date = parse_date(date)
+            if not parsed_date:
+                return Response({'error': 'Invalid date provided.'}, status=status.HTTP_400_BAD_REQUEST)
+            date = parsed_date
+
+        current_dt = academy_now()
+        window = get_batch_attendance_window(batch, current_dt, target_date=date)
+        if not window['can_record']:
+            return Response({'error': window['message'], 'window_status': window['status']}, status=status.HTTP_400_BAD_REQUEST)
 
         created_records = []
         for item in attendance_data:
@@ -91,7 +110,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             
             record, created = Attendance.objects.update_or_create(
                 student_id=student_id,
-                batch_id=batch_id,
+                batch=batch,
                 attendance_date=date,
                 defaults={'status': status_val}
             )
@@ -100,6 +119,73 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 self._check_consecutive_absences(record.student)
 
         return Response({'status': 'recorded', 'count': len(created_records)})
+
+    @action(detail=False, methods=['get'])
+    def flags(self, request):
+        """[R16] Flag missing or inconsistent attendance records."""
+        if request.user.role not in ['ADMIN', 'CLERK']:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        from apps.batches.models import Batch, BatchEnrollment
+
+        today = timezone.now().date()
+        schedule_map = {
+            0: 'MON', 1: 'TUE', 2: 'WED', 3: 'THU', 4: 'FRI', 5: 'SAT', 6: 'SUN'
+        }
+        today_code = schedule_map.get(today.weekday())
+
+        missing_batches = []
+        partial_batches = []
+        for batch in Batch.objects.filter(status='ACTIVE', schedule_day=today_code):
+            enrolled_count = BatchEnrollment.objects.filter(batch=batch).count()
+            recorded_count = Attendance.objects.filter(batch=batch, attendance_date=today).count()
+
+            if enrolled_count > 0 and recorded_count == 0:
+                missing_batches.append({
+                    'batch_id': batch.id,
+                    'batch_name': batch.batch_name,
+                    'issue': 'No attendance has been recorded for this scheduled class.',
+                })
+            elif 0 < recorded_count < enrolled_count:
+                partial_batches.append({
+                    'batch_id': batch.id,
+                    'batch_name': batch.batch_name,
+                    'recorded_count': recorded_count,
+                    'expected_count': enrolled_count,
+                    'issue': 'Attendance is partially recorded.',
+                })
+
+        inconsistent_records = []
+        for record in Attendance.objects.select_related('student', 'batch').filter(attendance_date=today):
+            enrolled = BatchEnrollment.objects.filter(student=record.student, batch=record.batch).exists()
+            if not enrolled:
+                inconsistent_records.append({
+                    'attendance_id': record.id,
+                    'student_name': record.student.get_full_name(),
+                    'batch_name': record.batch.batch_name,
+                    'issue': 'Attendance exists for a student who is not enrolled in this batch.',
+                })
+
+        coach_timestamp_issues = []
+        recent_coach_records = CoachAttendance.objects.select_related('coach', 'batch').filter(
+            date__gte=today - timedelta(days=30)
+        )
+        for record in recent_coach_records:
+            if not record.clock_in_time or not record.clock_out_time:
+                coach_timestamp_issues.append({
+                    'coach_attendance_id': record.id,
+                    'coach_name': record.coach.get_full_name(),
+                    'batch_name': record.batch.batch_name,
+                    'date': record.date,
+                    'issue': 'Missing clock-in or clock-out timestamp.',
+                })
+
+        return Response({
+            'missing_batches': missing_batches,
+            'partial_batches': partial_batches,
+            'inconsistent_records': inconsistent_records,
+            'coach_timestamp_issues': coach_timestamp_issues,
+        })
 
 class CoachAttendanceViewSet(viewsets.ModelViewSet):
     queryset = CoachAttendance.objects.all()
@@ -135,17 +221,45 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def clock_in(self, request):
         """[R12] Auto timestamping clock-in."""
+        if request.user.role != 'COACH':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
         batch_id = request.data.get('batch_id')
         if not batch_id:
             return Response({'error': 'batch_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        today = timezone.now().date()
+        active_record = CoachAttendance.objects.filter(
+            coach=request.user,
+            date=today,
+            clock_in_time__isnull=False,
+            clock_out_time__isnull=True,
+        ).first()
+        if active_record and str(active_record.batch_id) != str(batch_id):
+            return Response(
+                {'error': f'You already have an active class running for {active_record.batch.batch_name}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         record, created = CoachAttendance.objects.get_or_create(
             coach=request.user,
             batch_id=batch_id,
-            date=timezone.now().date(),
+            date=today,
             defaults={'clock_in_time': timezone.now()}
         )
-        
+
+        if not created and record.clock_in_time and not record.clock_out_time:
+            return Response(
+                {'error': 'This class session is already running.', 'record': CoachAttendanceSerializer(record).data},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not created and record.clock_in_time and record.clock_out_time:
+            return Response(
+                {'error': 'This class session has already been completed for today.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if not created and not record.clock_in_time:
             record.clock_in_time = timezone.now()
             record.save()
@@ -155,6 +269,9 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def clock_out(self, request):
         """[R12] Auto timestamping clock-out."""
+        if request.user.role != 'COACH':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
         batch_id = request.data.get('batch_id')
         if not batch_id:
             return Response({'error': 'batch_id is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -165,6 +282,10 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                 batch_id=batch_id,
                 date=timezone.now().date()
             )
+            if not record.clock_in_time:
+                return Response({'error': 'You must start the class before ending it.'}, status=status.HTTP_400_BAD_REQUEST)
+            if record.clock_out_time:
+                return Response({'error': 'This class session has already been ended.'}, status=status.HTTP_400_BAD_REQUEST)
             record.clock_out_time = timezone.now()
             record.save()
             return Response(CoachAttendanceSerializer(record).data)

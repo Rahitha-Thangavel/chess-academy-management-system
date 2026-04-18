@@ -1,5 +1,25 @@
 from .models import Notification
 
+
+LEGACY_ROUTE_MAP = {
+    '/parent/students': '/parent/children',
+    '/admin/batches': '/admin/schedule',
+    '/coach/batches': '/coach/batch-applications',
+    '/admin/reschedule': '/admin/reschedule-requests',
+}
+
+
+def normalize_target_url(target_url):
+    if not target_url:
+        return target_url
+
+    clean_url = target_url.rstrip('/')
+    if not clean_url.startswith('/'):
+        clean_url = f'/{clean_url}'
+
+    return LEGACY_ROUTE_MAP.get(clean_url, clean_url)
+
+
 def create_notification(user, notification_type, title, message, target_url=None):
     try:
         Notification.objects.create(
@@ -7,7 +27,7 @@ def create_notification(user, notification_type, title, message, target_url=None
             notification_type=notification_type,
             title=title,
             message=message,
-            target_url=target_url
+            target_url=normalize_target_url(target_url)
         )
     except Exception as e:
         print(f"Failed to create notification for {user}: {e}")
@@ -16,8 +36,7 @@ def mark_stale_notifications(target_url):
     """Marks all notifications with the given target_url as read."""
     if not target_url:
         return
-    # Clean URL (remove trailing slash)
-    clean_url = target_url.rstrip('/')
+    clean_url = normalize_target_url(target_url).rstrip('/')
     try:
         from django.db.models import Q
         updated_count = Notification.objects.filter(

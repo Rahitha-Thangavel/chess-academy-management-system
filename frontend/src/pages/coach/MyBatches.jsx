@@ -60,7 +60,16 @@ const MyBatches = () => {
                                     <td>{batch.current_students}/{batch.max_students}</td>
                                     <td><Badge bg="success">Active</Badge></td>
                                     <td>
-                                        <Button variant="outline-primary" size="sm" onClick={() => navigate('/coach/attendance')}>
+                                        <Button
+                                            variant="outline-primary"
+                                            size="sm"
+                                            onClick={() => navigate('/coach/mark-attendance', {
+                                                state: {
+                                                    batchId: batch.id,
+                                                    batchName: batch.batch_name,
+                                                },
+                                            })}
+                                        >
                                             Mark Attendance
                                         </Button>
                                     </td>

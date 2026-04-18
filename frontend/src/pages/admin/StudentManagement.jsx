@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { Modal, Button } from 'react-bootstrap';
+import { useAppUI } from '../../contexts/AppUIContext';
 
-const StudentManagement = () => {
+const StudentManagement = ({
+    showRegistrationQueue = true,
+    addButtonLabel = 'Add New Student',
+    addModalTitle = 'Add New Student',
+    addSuccessMessage = 'Student added successfully.',
+}) => {
+    const { confirm, notifySuccess, notifyError } = useAppUI();
     const [activeTab, setActiveTab] = useState('database');
     const [students, setStudents] = useState([]);
     const [pendingStudents, setPendingStudents] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showAssignModal, setShowAssignModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [batches, setBatches] = useState([]);
+    const [assignBatchId, setAssignBatchId] = useState('');
 
     // Filters & Search
     const [searchQuery, setSearchQuery] = useState('');
@@ -44,9 +53,14 @@ const StudentManagement = () => {
 
     useEffect(() => {
         fetchStudents();
-        fetchPendingStudents();
+        if (showRegistrationQueue) {
+            fetchPendingStudents();
+        } else {
+            setPendingStudents([]);
+            setLoading(false);
+        }
         fetchBatches();
-    }, [debouncedSearch, statusFilter, batchFilter, gradeFilter, debouncedSchool, activeTab]);
+    }, [debouncedSearch, statusFilter, batchFilter, gradeFilter, debouncedSchool, activeTab, showRegistrationQueue]);
 
     const fetchBatches = async () => {
         try {
@@ -94,20 +108,26 @@ const StudentManagement = () => {
             await axios.post(`/students/${id}/approve/`);
             fetchStudents();
             fetchPendingStudents();
-            alert('Student approved successfully!');
+            notifySuccess('Student approved successfully.');
             setShowModal(false);
         } catch (error) {
             console.error('Error approving student:', error);
-            alert('Failed to approve student.');
+            notifyError('Failed to approve student.');
         }
     };
 
     const handleReject = async (id) => {
-        if (!window.confirm('Are you sure you want to reject this student?')) return;
+        const shouldReject = await confirm({
+            title: 'Reject Student Registration',
+            message: 'Are you sure you want to reject this student registration?',
+            confirmLabel: 'Reject',
+            variant: 'danger',
+        });
+        if (!shouldReject) return;
         try {
             await axios.post(`/students/${id}/reject/`);
             fetchPendingStudents();
-            alert('Student rejected.');
+            notifySuccess('Student rejected.');
             setShowModal(false);
         } catch (error) {
             console.error('Error rejecting student:', error);
@@ -118,13 +138,13 @@ const StudentManagement = () => {
         e.preventDefault();
         try {
             await axios.post('/students/', newStudent);
-            alert('Student added successfully!');
+            notifySuccess(addSuccessMessage);
             setShowAddModal(false);
             setNewStudent({ first_name: '', last_name: '', date_of_birth: '', grade_level: '', school: '', parent_username: '' });
             fetchStudents();
         } catch (error) {
             console.error('Error adding student:', error);
-            alert(error.response?.data?.parent_username?.[0] || 'Failed to add student');
+            notifyError(error.response?.data?.parent_username?.[0] || 'Failed to add student.');
         }
     };
 
@@ -141,16 +161,43 @@ const StudentManagement = () => {
         setShowModal(true);
     };
 
+    const handleOpenAssignBatch = (student) => {
+        setSelectedStudent(student);
+        setAssignBatchId('');
+        setShowAssignModal(true);
+    };
+
+    const handleAssignBatch = async () => {
+        if (!selectedStudent || !assignBatchId) {
+            notifyError('Select a batch to assign.');
+            return;
+        }
+        try {
+            await axios.post('/enrollments/', {
+                student: selectedStudent.id,
+                batch: assignBatchId,
+            });
+            notifySuccess('Student assigned to batch successfully.');
+            setShowAssignModal(false);
+            setShowModal(false);
+            fetchStudents();
+        } catch (error) {
+            console.error('Error assigning batch:', error);
+            notifyError(error.response?.data?.error || 'Failed to assign batch.');
+        }
+    };
+
     return (
         <div className="container-fluid p-0">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h3 className="fw-bold m-0 text-success" style={{ color: '#6c9343' }}>Student Management</h3>
                 <button className="btn text-white fw-bold px-4 py-2" style={{ backgroundColor: '#6c9343' }} onClick={() => setShowAddModal(true)}>
-                    <i className="bi bi-person-plus-fill me-2"></i> Add New Student
+                    <i className="bi bi-person-plus-fill me-2"></i> {addButtonLabel}
                 </button>
             </div>
 
             {/* Registration Queue Section */}
+            {showRegistrationQueue && (
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
                 <div className="p-3 text-white d-flex justify-content-between align-items-center" style={{ backgroundColor: '#6c9343' }}>
                     <h6 className="fw-bold m-0">Registration Queue</h6>
@@ -188,6 +235,7 @@ const StudentManagement = () => {
                     )}
                 </div>
             </div>
+            )}
 
             {/* Student Database Section */}
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -341,7 +389,14 @@ const StudentManagement = () => {
                                                 </span>
                                             </td>
                                             <td className="text-center">
-                                                <button className="btn btn-sm btn-light border fw-bold" onClick={() => handleViewDetails(stu)}>View</button>
+                                                <div className="d-flex justify-content-center gap-2">
+                                                    <button className="btn btn-sm btn-light border fw-bold" onClick={() => handleViewDetails(stu)}>View</button>
+                                                    {stu.status === 'ACTIVE' && (
+                                                        <button className="btn btn-sm btn-outline-success fw-bold" onClick={() => handleOpenAssignBatch(stu)}>
+                                                            Add to Batch
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -402,14 +457,55 @@ const StudentManagement = () => {
                             </Button>
                         </>
                     )}
+                    {selectedStudent?.status === 'ACTIVE' && (
+                        <Button variant="success" style={{ backgroundColor: '#6c9343', border: 'none' }} onClick={() => handleOpenAssignBatch(selectedStudent)}>
+                            Add to Batch
+                        </Button>
+                    )}
                     <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+                </Modal.Footer>
+            </Modal>
+
+            <Modal show={showAssignModal} onHide={() => setShowAssignModal(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title className="fw-bold" style={{ color: '#6c9343' }}>Assign Student to Batch</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <div className="mb-3">
+                        <div className="small text-secondary mb-2">Student</div>
+                        <div className="fw-bold">{selectedStudent?.first_name} {selectedStudent?.last_name}</div>
+                    </div>
+                    <div>
+                        <label className="form-label small fw-bold">Select Batch</label>
+                        <select
+                            className="form-select"
+                            value={assignBatchId}
+                            onChange={(e) => setAssignBatchId(e.target.value)}
+                        >
+                            <option value="">Choose a batch...</option>
+                            {batches
+                                .filter((batch) => batch.status === 'ACTIVE')
+                                .filter((batch) => !selectedStudent?.enrollments?.some((enrollment) => enrollment.batch === batch.id))
+                                .map((batch) => (
+                                    <option key={batch.id} value={batch.id}>
+                                        {batch.batch_name} ({batch.batch_type === 'ONE_TIME' ? batch.exact_date : batch.schedule_day} {String(batch.start_time).slice(0, 5)}-{String(batch.end_time).slice(0, 5)})
+                                    </option>
+                                ))}
+                        </select>
+                    </div>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="light" onClick={() => setShowAssignModal(false)}>Cancel</Button>
+                    <Button variant="success" style={{ backgroundColor: '#6c9343', border: 'none' }} onClick={handleAssignBatch}>
+                        Assign Batch
+                    </Button>
                 </Modal.Footer>
             </Modal>
 
             {/* Add Student Modal (Admin) */}
             <Modal show={showAddModal} onHide={() => setShowAddModal(false)} centered size="lg">
                 <Modal.Header closeButton>
-                    <Modal.Title className="fw-bold" style={{ color: '#6c9343' }}>Add New Student</Modal.Title>
+                    <Modal.Title className="fw-bold" style={{ color: '#6c9343' }}>{addModalTitle}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body className="p-4">
                     <form onSubmit={handleAddStudent}>

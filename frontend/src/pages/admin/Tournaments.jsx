@@ -1,8 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { Modal, Button, Form, Table, Tabs, Tab } from 'react-bootstrap';
+import { useAppUI } from '../../contexts/AppUIContext';
+
+const getWindowBadge = (status) => {
+    switch (status) {
+        case 'OPEN':
+            return { label: 'Live Now', className: 'bg-success-subtle text-success border border-success-subtle' };
+        case 'FINISHED':
+            return { label: 'Finished', className: 'bg-secondary-subtle text-secondary border border-secondary-subtle' };
+        default:
+            return { label: 'Registration Open', className: 'bg-warning-subtle text-warning border border-warning-subtle' };
+    }
+};
+
+const formatTournamentDate = (tournament) => (
+    `${new Date(tournament.tournament_date).toLocaleDateString()} • ${tournament.start_time?.slice(0, 5)} - ${tournament.end_time?.slice(0, 5)}`
+);
+
+const getTournamentSortValue = (tournament) => {
+    const dateValue = new Date(`${tournament.tournament_date}T${tournament.start_time || '00:00:00'}`).getTime();
+    const finishedOffset = tournament.window_status === 'FINISHED' ? 10_000_000_000_000 : 0;
+    return finishedOffset + dateValue;
+};
 
 const Tournaments = () => {
+    const { notifySuccess, notifyError, notifyInfo } = useAppUI();
     const [tournaments, setTournaments] = useState([]);
     const [registrations, setRegistrations] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -41,6 +64,8 @@ const Tournaments = () => {
     const [newTournament, setNewTournament] = useState({
         tournament_name: '',
         tournament_date: '',
+        start_time: '09:00',
+        end_time: '17:00',
         venue: '',
         entry_fee: '0.00'
     });
@@ -77,7 +102,7 @@ const Tournaments = () => {
     const fetchRegistrations = async () => {
         try {
             const response = await axios.get('/registrations/');
-            setRegistrations(response.data.filter(r => r.payment_status === 'PENDING'));
+            setRegistrations(response.data.filter(r => r.status === 'PENDING'));
         } catch (error) {
             console.error('Error fetching registrations:', error);
         } finally {
@@ -119,24 +144,49 @@ const Tournaments = () => {
         e.preventDefault();
         try {
             await axios.post('/tournaments/', newTournament);
-            alert('Tournament created successfully!');
+            notifySuccess('Tournament created successfully.');
             setShowModal(false);
-            setNewTournament({ tournament_name: '', tournament_date: '', venue: '', entry_fee: '0.00' });
+            setNewTournament({ tournament_name: '', tournament_date: '', start_time: '09:00', end_time: '17:00', venue: '', entry_fee: '0.00' });
             fetchTournaments();
         } catch (error) {
             console.error('Error creating tournament:', error);
-            alert('Failed to create tournament.');
+            notifyError('Failed to create tournament.');
         }
     };
 
     const handleApproveRegistration = async (id) => {
         try {
-            await axios.post(`/registrations/${id}/record_fee/`);
-            alert('Registration approved and fee recorded.');
+            await axios.post(`/registrations/${id}/approve/`);
+            notifySuccess('Registration approved.');
             fetchRegistrations();
             if (selectedTournamentId) fetchTournamentParticipants(selectedTournamentId);
         } catch (error) {
             console.error('Error approving registration:', error);
+            notifyError(error.response?.data?.detail || 'Failed to approve registration.');
+        }
+    };
+
+    const handleRejectRegistration = async (id) => {
+        try {
+            await axios.post(`/registrations/${id}/reject/`);
+            notifySuccess('Registration rejected.');
+            fetchRegistrations();
+            if (selectedTournamentId) fetchTournamentParticipants(selectedTournamentId);
+        } catch (error) {
+            console.error('Error rejecting registration:', error);
+            notifyError(error.response?.data?.detail || 'Failed to reject registration.');
+        }
+    };
+
+    const handleRecordFee = async (id) => {
+        try {
+            await axios.post(`/registrations/${id}/record_fee/`);
+            notifySuccess('Registration approved and fee recorded.');
+            fetchRegistrations();
+            if (selectedTournamentId) fetchTournamentParticipants(selectedTournamentId);
+        } catch (error) {
+            console.error('Error recording fee:', error);
+            notifyError(error.response?.data?.detail || 'Failed to record fee.');
         }
     };
 
@@ -149,14 +199,14 @@ const Tournaments = () => {
         try {
             const attendance_status = attendanceEdits[registrationId];
             if (!attendance_status) {
-                alert('Please select PRESENT or ABSENT.');
+                notifyInfo('Please select PRESENT or ABSENT.');
                 return;
             }
             await axios.post(`/registrations/${registrationId}/record_attendance/`, { attendance_status });
             await fetchTournamentParticipants(selectedTournamentId);
         } catch (error) {
             console.error('Failed to save attendance:', error);
-            alert('Failed to save attendance.');
+            notifyError('Failed to save attendance.');
         }
     };
 
@@ -193,20 +243,21 @@ const Tournaments = () => {
             setShowRecordResultModal(false);
             fetchTournamentMatches(selectedTournamentId);
             fetchTournamentParticipants(selectedTournamentId);
+            notifySuccess('Match result recorded successfully.');
         } catch (error) {
             console.error('Failed to record match result:', error);
-            alert('Failed to record match result.');
+            notifyError('Failed to record match result.');
         }
     };
 
     const submitAddMatch = async () => {
         try {
             if (!addMatchForm.player1 || !addMatchForm.player2) {
-                alert('Select both players.');
+                notifyInfo('Select both players.');
                 return;
             }
             if (addMatchForm.player1 === addMatchForm.player2) {
-                alert('Player1 and Player2 must be different.');
+                notifyInfo('Player 1 and Player 2 must be different.');
                 return;
             }
 
@@ -221,19 +272,22 @@ const Tournaments = () => {
             setShowAddMatchModal(false);
             setAddMatchForm({ player1: '', player2: '', round_number: 1, match_date: '' });
             fetchTournamentMatches(selectedTournamentId);
+            notifySuccess('Match created successfully.');
         } catch (error) {
             console.error('Failed to add match:', error);
-            alert('Failed to add match.');
+            notifyError('Failed to add match.');
         }
     };
 
     const currentMatch = tournamentMatches.find(m => m.id === resultForm.matchId);
+    const selectedTournament = tournaments.find((t) => t.id === selectedTournamentId);
+    const sortedTournaments = [...tournaments].sort((a, b) => getTournamentSortValue(a) - getTournamentSortValue(b));
 
     return (
         <div className="container-fluid p-0">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h3 className="fw-bold m-0 text-success" style={{ color: '#6c9343' }}>Tournament Management</h3>
-                <button className="btn text-white fw-bold px-4 py-2" style={{ backgroundColor: '#6c9343' }} onClick={() => setShowModal(true)}>
+                <button className="btn text-white fw-bold px-4 py-2 rounded-4 shadow-sm" style={{ backgroundColor: '#6c9343', border: 'none' }} onClick={() => setShowModal(true)}>
                     <i className="bi bi-plus-lg me-2"></i> Create Tournament
                 </button>
             </div>
@@ -244,51 +298,59 @@ const Tournaments = () => {
                         {tournaments.length === 0 ? (
                             <div className="card border-0 shadow-sm rounded-4 p-4 text-center text-muted">No tournaments found.</div>
                         ) : (
-                            tournaments.map((t) => (
-                                <div key={t.id} className="card border-0 shadow-sm rounded-4 p-4 position-relative overflow-hidden">
-                                    <div className="d-flex justify-content-between align-items-start">
-                                        <div style={{ maxWidth: '70%' }}>
-                                            <h5 className="fw-bold text-success mb-3" style={{ color: '#6c9343' }}>{t.tournament_name}</h5>
-                                            <div className="row g-3 mb-3">
+                            sortedTournaments.map((t) => (
+                                <div key={t.id} className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                                    <div className="p-4" style={{ background: 'linear-gradient(135deg, rgba(108,147,67,0.08), rgba(255,255,255,1) 42%)' }}>
+                                    <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                                        <div className="flex-grow-1">
+                                            <div className="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+                                                <div>
+                                                    <h5 className="fw-bold text-success mb-1" style={{ color: '#6c9343' }}>{t.tournament_name}</h5>
+                                                    <small className="text-muted">Tournament ID: {t.id}</small>
+                                                </div>
+                                                <span className={`badge rounded-pill px-3 py-2 fw-semibold ${getWindowBadge(t.window_status).className}`}>
+                                                    {getWindowBadge(t.window_status).label}
+                                                </span>
+                                            </div>
+                                            <div className="row g-3 mb-4">
                                                 <div className="col-md-6">
-                                                    <div className="d-flex gap-2">
-                                                        <i className="bi bi-calendar-event text-secondary"></i>
+                                                    <div className="bg-white border rounded-4 p-3 h-100 d-flex gap-2">
+                                                        <i className="bi bi-calendar-event text-secondary mt-1"></i>
                                                         <div>
                                                             <small className="fw-bold d-block">Date & Location</small>
-                                                            <small className="text-muted">{new Date(t.tournament_date).toLocaleDateString()} • {t.venue || 'TBD'}</small>
+                                                            <small className="text-muted d-block">{formatTournamentDate(t)}</small>
+                                                            <small className="text-muted d-block mt-1">{t.venue || 'Venue to be confirmed'}</small>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div className="col-md-6">
-                                                    <div className="d-flex gap-2">
-                                                        <i className="bi bi-people text-secondary"></i>
+                                                    <div className="bg-white border rounded-4 p-3 h-100 d-flex gap-2">
+                                                        <i className="bi bi-people text-secondary mt-1"></i>
                                                         <div>
                                                             <small className="fw-bold d-block">Entry Fee</small>
-                                                            <small className="text-muted">LKR {t.entry_fee}</small>
+                                                            <small className="text-muted d-block">LKR {Number(t.entry_fee || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                                                            <small className="text-muted d-block mt-1">{t.window_status === 'FINISHED' ? 'Tournament closed' : 'Ready for participant management'}</small>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="d-flex gap-2">
+                                            <div className="d-flex gap-2 flex-wrap">
                                                 <button
-                                                    className="btn btn-sm btn-light text-secondary fw-bold px-3"
+                                                    className="btn btn-sm btn-light border text-secondary fw-bold px-4 rounded-3"
                                                     onClick={() => handleSelectManage(t.id)}
                                                 >
-                                                    Participants
+                                                    View Participants
                                                 </button>
                                                 <button
-                                                    className="btn btn-sm text-white fw-bold px-3"
-                                                    style={{ backgroundColor: '#6c9343' }}
+                                                    className="btn btn-sm text-white fw-bold px-4 rounded-3"
+                                                    style={{ backgroundColor: '#6c9343', border: 'none' }}
                                                     onClick={() => handleSelectManage(t.id)}
                                                 >
-                                                    Manage
+                                                    Manage Tournament
                                                 </button>
                                             </div>
                                         </div>
-                                        <div className="rounded-circle text-white d-flex align-items-center justify-content-center text-center p-3 shadow-sm"
-                                            style={{ width: '90px', height: '90px', backgroundColor: '#6c9343', fontSize: '0.7rem', lineHeight: '1.2' }}>
-                                            ID: {t.id}
-                                        </div>
+                                    </div>
                                     </div>
                                 </div>
                             ))
@@ -299,29 +361,44 @@ const Tournaments = () => {
                 <div className="col-lg-4">
                     <div className="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
                         <div className="p-3 text-white" style={{ backgroundColor: '#6c9343' }}>
-                            <h6 className="fw-bold m-0">Registration Requests</h6>
+                            <div className="d-flex justify-content-between align-items-center">
+                                <h6 className="fw-bold m-0">Registration Requests</h6>
+                                <span className="badge rounded-pill bg-white text-success">{registrations.length}</span>
+                            </div>
                         </div>
                         <div className="p-4 d-flex flex-column gap-3">
                             {registrations.length === 0 ? (
                                 <div className="text-center py-4 text-muted border rounded bg-light">No pending requests.</div>
                             ) : (
                                 registrations.map((req) => (
-                                    <div key={req.id} className="p-3 rounded-3 bg-light border">
-                                        <div className="d-flex justify-content-between align-items-start mb-2">
+                                    <div key={req.id} className="p-3 rounded-4 bg-light border">
+                                        <div className="d-flex justify-content-between align-items-start mb-3">
                                             <div>
                                                 <h6 className="fw-bold m-0">{req.student_name}</h6>
                                                 <small className="text-secondary d-block mt-1">{req.tournament_name}</small>
-                                                <small className="text-muted d-block mt-1">Requested: {new Date(req.registration_date).toLocaleDateString()}</small>
+                                                <small className="text-muted d-block mt-2">Requested on {new Date(req.registration_date).toLocaleDateString()}</small>
                                             </div>
-                                            <span className="badge bg-warning">Pending</span>
+                                            <span className="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle">Pending</span>
                                         </div>
-                                        <div className="d-flex gap-2 mt-3">
+                                        <div className="d-grid gap-2">
                                             <button
-                                                className="btn btn-sm text-white fw-bold px-3"
-                                                style={{ backgroundColor: '#6c9343' }}
+                                                className="btn btn-sm text-white fw-bold px-3 rounded-3"
+                                                style={{ backgroundColor: '#6c9343', border: 'none' }}
                                                 onClick={() => handleApproveRegistration(req.id)}
                                             >
                                                 Approve
+                                            </button>
+                                            <button
+                                                className="btn btn-sm btn-outline-success fw-bold px-3 rounded-3"
+                                                onClick={() => handleRecordFee(req.id)}
+                                            >
+                                                Approve + Fee
+                                            </button>
+                                            <button
+                                                className="btn btn-sm btn-outline-danger fw-bold px-3 rounded-3"
+                                                onClick={() => handleRejectRegistration(req.id)}
+                                            >
+                                                Reject
                                             </button>
                                         </div>
                                     </div>
@@ -337,7 +414,12 @@ const Tournaments = () => {
                     <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                         <div className="p-3 text-white" style={{ backgroundColor: '#6c9343' }}>
                             <div className="d-flex justify-content-between align-items-center">
-                                <h5 className="fw-bold m-0">Manage Tournament</h5>
+                                <div>
+                                    <h5 className="fw-bold m-0">Manage Tournament</h5>
+                                    {selectedTournament && (
+                                        <div className="small opacity-75 mt-1">{selectedTournament.tournament_name}</div>
+                                    )}
+                                </div>
                                 <Button variant="light" size="sm" onClick={() => setSelectedTournamentId('')}>
                                     Close
                                 </Button>
@@ -416,7 +498,10 @@ const Tournaments = () => {
                                         <Button
                                             variant="success"
                                             onClick={() => setShowAddMatchModal(true)}
-                                            disabled={tournamentParticipants.length < 2}
+                                            disabled={
+                                                tournamentParticipants.length < 2 ||
+                                                tournaments.find((t) => t.id === selectedTournamentId)?.window_status === 'FINISHED'
+                                            }
                                         >
                                             Add Match
                                         </Button>
@@ -487,6 +572,30 @@ const Tournaments = () => {
                                 onChange={(e) => setNewTournament({ ...newTournament, tournament_date: e.target.value })}
                             />
                         </Form.Group>
+                        <div className="row g-3">
+                            <div className="col-md-6">
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Start Time</Form.Label>
+                                    <Form.Control
+                                        type="time"
+                                        required
+                                        value={newTournament.start_time}
+                                        onChange={(e) => setNewTournament({ ...newTournament, start_time: e.target.value })}
+                                    />
+                                </Form.Group>
+                            </div>
+                            <div className="col-md-6">
+                                <Form.Group className="mb-3">
+                                    <Form.Label>End Time</Form.Label>
+                                    <Form.Control
+                                        type="time"
+                                        required
+                                        value={newTournament.end_time}
+                                        onChange={(e) => setNewTournament({ ...newTournament, end_time: e.target.value })}
+                                    />
+                                </Form.Group>
+                            </div>
+                        </div>
                         <Form.Group className="mb-3">
                             <Form.Label>Venue</Form.Label>
                             <Form.Control

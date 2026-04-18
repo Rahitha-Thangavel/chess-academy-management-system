@@ -82,11 +82,14 @@ const Tournaments = () => {
                                     <div key={t.id} className="card border-0 shadow-sm p-4 rounded-3">
                                         <div className="d-flex justify-content-between align-items-start mb-3">
                                             <h5 className="fw-bold m-0">{t.tournament_name}</h5>
-                                            <span className="badge bg-success-subtle text-success px-3 py-2 rounded-pill">Open</span>
+                                            <span className={`badge px-3 py-2 rounded-pill ${t.window_status === 'OPEN' ? 'bg-secondary' : t.window_status === 'FINISHED' ? 'bg-secondary' : 'bg-success-subtle text-success'}`}>
+                                                {t.window_status === 'OPEN' ? 'Started' : t.window_status === 'FINISHED' ? 'Closed' : 'Open'}
+                                            </span>
                                         </div>
                                         <div className="row g-4 mb-4">
                                             <div className="col-md-6 text-secondary">
                                                 <div className="mb-2"><i className="bi bi-calendar-event me-2"></i>Date: {new Date(t.tournament_date).toLocaleDateString()}</div>
+                                                <div className="mb-2"><i className="bi bi-clock me-2"></i>Time: {t.start_time?.slice(0, 5)} - {t.end_time?.slice(0, 5)}</div>
                                                 <div><i className="bi bi-geo-alt me-2"></i>Venue: {t.venue}</div>
                                             </div>
                                             <div className="col-md-6 text-secondary">
@@ -95,11 +98,12 @@ const Tournaments = () => {
                                         </div>
                                         <div className="d-flex gap-3">
                                             <button
-                                                className="btn text-white px-4 py-2 rounded-2 fw-bold"
-                                                style={{ backgroundColor: '#6c9343' }}
-                                                onClick={() => navigate(`/parent/tournaments/register/${t.id}`)}
+                                                className={`btn px-4 py-2 rounded-2 fw-bold ${t.window_status === 'UPCOMING' || t.window_status === 'BEFORE_START' ? 'text-white' : 'btn-outline-secondary'}`}
+                                                style={(t.window_status === 'UPCOMING' || t.window_status === 'BEFORE_START') ? { backgroundColor: '#6c9343' } : {}}
+                                                onClick={() => (t.window_status === 'UPCOMING' || t.window_status === 'BEFORE_START') && navigate(`/parent/tournaments/register/${t.id}`)}
+                                                disabled={!(t.window_status === 'UPCOMING' || t.window_status === 'BEFORE_START')}
                                             >
-                                                Register Child
+                                                {(t.window_status === 'UPCOMING' || t.window_status === 'BEFORE_START') ? 'Register Child' : 'Registration Closed'}
                                             </button>
                                         </div>
                                     </div>
@@ -126,7 +130,7 @@ const Tournaments = () => {
                                         </div>
                                         <div className="row g-4">
                                             <div className="col-md-6 text-secondary small">
-                                                Registered on: {new Date(reg.registration_date).toLocaleDateString()}
+                                                Registered on: {new Date(reg.registration_date).toLocaleDateString()} • Status: {reg.status}
                                             </div>
                                             <div className="col-md-6 text-end">
                                                 {reg.rank && <div className="fw-bold text-success">Result: Rank {reg.rank} (Score: {reg.score})</div>}

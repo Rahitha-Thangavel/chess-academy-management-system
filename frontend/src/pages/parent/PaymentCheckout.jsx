@@ -1,23 +1,42 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const PaymentCheckout = () => {
+    const { notifyError } = useAppUI();
     const navigate = useNavigate();
-    const { id } = useParams(); // In a real app, use this to fetch invoice details
+    const location = useLocation();
+    const { id } = useParams();
 
     const [isProcessing, setIsProcessing] = useState(false);
     const [fee, setFee] = useState(null);
+    const [studentId, setStudentId] = useState('');
+    const query = new URLSearchParams(location.search);
+    const paymentKind = query.get('kind') || 'MONTHLY';
+    const tournamentStudentId = query.get('studentId');
+    const selectedMonth = Number(query.get('month')) || (new Date().getMonth() + 1);
+    const selectedYear = Number(query.get('year')) || new Date().getFullYear();
 
     useEffect(() => {
         const loadFee = async () => {
             if (!id) return;
             try {
-                const now = new Date();
-                const currentMonth = now.getMonth() + 1; // 1-12
-                const currentYear = now.getFullYear();
+                if (paymentKind === 'TOURNAMENT') {
+                    const registrationRes = await axios.get(`/registrations/${id}/`);
+                    setStudentId(registrationRes.data.student);
+                    const tournamentRes = await axios.get(`/tournaments/${registrationRes.data.tournament}/`);
+                    setFee({
+                        student_name: registrationRes.data.student_name,
+                        label: registrationRes.data.tournament_name,
+                        base_fee: tournamentRes.data.entry_fee,
+                        calculated_fee: tournamentRes.data.entry_fee,
+                        sibling_discount_amount: '0.00',
+                    });
+                    return;
+                }
                 const res = await axios.get(`/payments/calculate_fee/`, {
-                    params: { student_id: id, month: currentMonth, year: currentYear },
+                    params: { student_id: id, month: selectedMonth, year: selectedYear },
                 });
                 setFee(res.data);
             } catch (err) {
@@ -26,7 +45,7 @@ const PaymentCheckout = () => {
         };
 
         loadFee();
-    }, [id]);
+    }, [id, paymentKind, selectedMonth, selectedYear]);
 
     const handlePayment = (e) => {
         e.preventDefault();
@@ -39,11 +58,14 @@ const PaymentCheckout = () => {
                 const computedAmount = fee?.calculated_fee ? Number(fee.calculated_fee) : 0;
 
                 const payload = {
-                    student: id,
+                    student: paymentKind === 'TOURNAMENT' ? tournamentStudentId || studentId : id,
                     amount: computedAmount,
-                    payment_date: paymentDate,
+                    payment_date: paymentKind === 'MONTHLY'
+                        ? `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`
+                        : paymentDate,
                     payment_method: 'CARD',
-                    payment_type: 'MONTHLY',
+                    payment_type: paymentKind,
+                    ...(paymentKind === 'TOURNAMENT' ? { registration_id: id } : {}),
                 };
 
                 const res = await axios.post('/payments/', payload);
@@ -52,7 +74,7 @@ const PaymentCheckout = () => {
             } catch (err) {
                 console.error('Payment failed:', err);
                 setIsProcessing(false);
-                alert('Payment failed. Please try again.');
+                notifyError('Payment failed. Please try again.');
             }
         };
 
@@ -74,18 +96,27 @@ const PaymentCheckout = () => {
                     <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                         <div className="p-4 bg-light border-bottom">
                             <h5 className="fw-bold m-0 text-secondary">Order Summary</h5>
+                            {paymentKind === 'MONTHLY' && (
+                                <small className="text-muted">Billing month: {new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' })}</small>
+                            )}
                         </div>
                         <div className="p-4">
                             <div className="d-flex justify-content-between mb-2">
-                                <span className="text-secondary">Student Fee (Arjun)</span>
-                                    <span className="fw-bold">{fee?.base_fee ? `LKR ${fee.base_fee}` : 'LKR 2,000'}</span>
+                                <span className="text-secondary">
+                                    {paymentKind === 'MONTHLY'
+                                        ? `Student Fee (${fee?.student_name || 'Student'})`
+                                        : `Tournament Fee (${fee?.label || 'Tournament'})`}
+                                </span>
+                                <span className="fw-bold">{fee?.base_fee ? `LKR ${fee.base_fee}` : 'LKR 0.00'}</span>
                             </div>
-                            <div className="d-flex justify-content-between mb-3">
-                                <span className="text-success small">Discount (Sibling)</span>
+                            {paymentKind === 'MONTHLY' && (
+                                <div className="d-flex justify-content-between mb-3">
+                                    <span className="text-success small">Discount (Sibling)</span>
                                     <span className="text-success small">
-                                        {fee?.sibling_count >= 2 ? `- LKR ${(Number(fee.base_fee) - Number(fee.calculated_fee)).toFixed(2)}` : '- LKR 0'}
+                                        - LKR {fee?.sibling_discount_amount || '0.00'}
                                     </span>
-                            </div>
+                                </div>
+                            )}
                             <hr />
                             <div className="d-flex justify-content-between align-items-center">
                                 <span className="fw-bold h5 m-0">Total Due</span>

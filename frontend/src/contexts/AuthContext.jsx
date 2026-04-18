@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authAPI } from '../api/auth';
+import { authStorage } from '../utils/authStorage';
 
 const AuthContext = createContext();
 
@@ -19,8 +20,9 @@ export const AuthProvider = ({ children }) => {
   // Check if user is logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('access_token');
-      const storedUser = localStorage.getItem('user');
+      authStorage.migrateFromLocalStorage();
+      const token = authStorage.getAccessToken();
+      const storedUser = authStorage.getUser();
 
       if (token && storedUser) {
         try {
@@ -35,27 +37,23 @@ export const AuthProvider = ({ children }) => {
 
           if (profile.role && profile.role !== localUser.role) {
             console.warn(`Role mismatch detected on refresh! Server: ${profile.role}, Local: ${localUser.role}`);
-            // If roles mismatch, trust the server but update the local storage to keep state consistent
             const updatedUser = { ...localUser, ...profile };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
+            authStorage.setSession({ user: updatedUser });
             setUser(updatedUser);
           } else {
-            // Roles match or profile didn't provide role clearly
             setUser({ ...localUser, ...profile });
           }
         } catch (err) {
           console.error('Auth check failed:', err);
           if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('user');
+            authStorage.clearSession();
             setUser(null);
           } else {
             try {
               const fallbackUser = JSON.parse(storedUser);
               setUser(fallbackUser);
             } catch (e) {
-              localStorage.removeItem('user');
+              authStorage.clearSession();
               setUser(null);
             }
           }
@@ -73,10 +71,11 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const data = await authAPI.login(email, password);
 
-      // Store tokens and user data
-      localStorage.setItem('access_token', data.access);
-      localStorage.setItem('refresh_token', data.refresh);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      authStorage.setSession({
+        access: data.access,
+        refresh: data.refresh,
+        user: data.user,
+      });
 
       setUser(data.user);
       return { success: true, user: data.user };
@@ -98,9 +97,11 @@ export const AuthProvider = ({ children }) => {
       const tokens = data.tokens || (data.access ? data : null);
 
       if (tokens) {
-        localStorage.setItem('access_token', tokens.access);
-        localStorage.setItem('refresh_token', tokens.refresh);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        authStorage.setSession({
+          access: tokens.access,
+          refresh: tokens.refresh,
+          user: data.user,
+        });
         setUser(data.user);
       }
 
@@ -124,7 +125,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const updatedUser = await authAPI.updateProfile(userData);
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      authStorage.setSession({ user: updatedUser });
       return { success: true, user: updatedUser };
     } catch (err) {
       const errorMsg = err.response?.data || 'Profile update failed.';

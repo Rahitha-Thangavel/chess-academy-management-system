@@ -1,17 +1,36 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import Tournament, TournamentRegistration, TournamentMatch
 
 class TournamentSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by_user.get_full_name', read_only=True)
+    is_today = serializers.SerializerMethodField()
+    window_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Tournament
         fields = [
-            'id', 'tournament_name', 'tournament_date', 'venue', 
+            'id', 'tournament_name', 'tournament_date', 'start_time', 'end_time', 'venue', 
             'entry_fee', 'created_by_user', 'created_by_name', 
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'is_today', 'window_status'
         ]
         read_only_fields = ['id', 'created_by_user', 'created_at', 'updated_at']
+
+    def get_is_today(self, obj):
+        return obj.tournament_date == timezone.localdate()
+
+    def get_window_status(self, obj):
+        now = timezone.localtime()
+        today = now.date()
+        if obj.tournament_date > today:
+            return 'UPCOMING'
+        if obj.tournament_date < today:
+            return 'FINISHED'
+        if now.time() < obj.start_time:
+            return 'BEFORE_START'
+        if now.time() > obj.end_time:
+            return 'FINISHED'
+        return 'OPEN'
 
 class TournamentRegistrationSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.get_full_name', read_only=True)

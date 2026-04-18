@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { AppUIProvider } from './contexts/AppUIContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -33,6 +35,8 @@ import ClerkStudents from './pages/clerk/Students';
 import ClerkAttendance from './pages/clerk/Attendance';
 import ClerkPayments from './pages/clerk/Payments';
 import ClerkTournaments from './pages/clerk/Tournaments';
+import ClerkBatches from './pages/clerk/Batches';
+import ClerkRescheduleRequests from './pages/clerk/RescheduleRequests';
 import CoachDashboard from './pages/coach/Dashboard';
 import CoachLayout from './components/coach/CoachLayout';
 import CoachClasses from './pages/coach/MyClasses';
@@ -71,9 +75,11 @@ import './App.css';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <ToastContainer position="top-right" autoClose={3000} />
-        <Routes>
+      <NotificationProvider>
+        <AppUIProvider>
+          <Router>
+            <ToastContainer position="top-center" autoClose={3000} />
+            <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
@@ -264,6 +270,26 @@ function App() {
               <ProtectedRoute allowedRoles={['CLERK']}>
                 <ClerkLayout>
                   <ClerkTournaments />
+                </ClerkLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clerk/batches"
+            element={
+              <ProtectedRoute allowedRoles={['CLERK']}>
+                <ClerkLayout>
+                  <ClerkBatches />
+                </ClerkLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clerk/reschedule-requests"
+            element={
+              <ProtectedRoute allowedRoles={['CLERK']}>
+                <ClerkLayout>
+                  <ClerkRescheduleRequests />
                 </ClerkLayout>
               </ProtectedRoute>
             }
@@ -541,8 +567,10 @@ function App() {
 
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router >
+            </Routes>
+          </Router >
+        </AppUIProvider>
+      </NotificationProvider>
     </AuthProvider >
   );
 }

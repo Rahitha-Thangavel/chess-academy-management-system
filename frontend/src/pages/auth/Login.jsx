@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import './Login.css'; // Import custom styles
 
@@ -11,9 +11,13 @@ const Login = () => {
 
   const { login, error, setError } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = new URLSearchParams(window.location.search);
   const [successMessage, setSuccessMessage] = useState('');
   const [resendUrl, setResendUrl] = useState(null);
+  const sessionMessage = location.state?.reason === 'session_expired'
+    ? 'Your session changed in another tab. Please sign in again to continue.'
+    : '';
 
   React.useEffect(() => {
     setError(null); // Clear any existing errors on mount
@@ -77,6 +81,13 @@ const Login = () => {
                 className="btn-close"
                 onClick={() => setError(null)}
               ></button>
+            </div>
+          )}
+
+          {sessionMessage && (
+            <div className="alert alert-warning" role="alert">
+              <i className="bi bi-shield-exclamation me-2"></i>
+              {sessionMessage}
             </div>
           )}
 

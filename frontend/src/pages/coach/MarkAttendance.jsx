@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const MarkAttendance = () => {
+    const { notifyError } = useAppUI();
     const navigate = useNavigate();
     const location = useLocation();
-    const { batchId, batchName } = location.state || {};
+    const initialState = location.state || {};
 
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [seconds, setSeconds] = useState(0);
@@ -13,15 +15,12 @@ const MarkAttendance = () => {
     const [startTime, setStartTime] = useState(null);
     const [endTime, setEndTime] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [sessionBatchId, setSessionBatchId] = useState(initialState.batchId || null);
+    const [sessionBatchName, setSessionBatchName] = useState(initialState.batchName || '');
 
     useEffect(() => {
-        if (!batchId) {
-            alert("No batch selected.");
-            navigate('/coach/dashboard');
-            return;
-        }
         checkStatus();
-    }, [batchId]);
+    }, []);
 
     // Timer effect
     useEffect(() => {
@@ -40,7 +39,26 @@ const MarkAttendance = () => {
         try {
             const res = await axios.get('/coaches/');
             const today = new Date().toISOString().split('T')[0];
-            const record = res.data.find(r => r.date === today && r.batch === batchId);
+            const record = sessionBatchId
+                ? res.data.find(r => r.date === today && r.batch === sessionBatchId)
+                : res.data.find(r => r.date === today && r.clock_in_time && !r.clock_out_time);
+
+            if (!record && !sessionBatchId) {
+                notifyError('No running class found. Please start from your dashboard.');
+                navigate('/coach/dashboard');
+                return;
+            }
+
+            if (record) {
+                setSessionBatchId(record.batch);
+                setSessionBatchName(record.batch_name || initialState.batchName || '');
+            }
+
+            setIsTimerRunning(false);
+            setAttendanceMarked(false);
+            setStartTime(null);
+            setEndTime(null);
+            setSeconds(0);
 
             if (record) {
                 if (record.clock_in_time && !record.clock_out_time) {
@@ -64,8 +82,13 @@ const MarkAttendance = () => {
                     setSeconds(diff);
                 }
             }
+            if (!record && sessionBatchId) {
+                setSessionBatchId(initialState.batchId || null);
+                setSessionBatchName(initialState.batchName || '');
+            }
         } catch (err) {
             console.error(err);
+            notifyError('Unable to load class timer.');
         } finally {
             setLoading(false);
         }
@@ -80,19 +103,24 @@ const MarkAttendance = () => {
 
     const handleStartClass = async () => {
         try {
-            await axios.post('/coaches/clock_in/', { batch_id: batchId });
+            if (!sessionBatchId) {
+                notifyError('No batch selected.');
+                navigate('/coach/dashboard');
+                return;
+            }
+            await axios.post('/coaches/clock_in/', { batch_id: sessionBatchId });
             checkStatus(); // Refresh to sync time
         } catch (err) {
-            alert("Failed to start class");
+            notifyError(err.response?.data?.error || 'Failed to start class.');
         }
     };
 
     const handleEndClass = async () => {
         try {
-            await axios.post('/coaches/clock_out/', { batch_id: batchId });
+            await axios.post('/coaches/clock_out/', { batch_id: sessionBatchId });
             checkStatus();
         } catch (err) {
-            alert("Failed to end class");
+            notifyError(err.response?.data?.error || 'Failed to end class.');
         }
     };
 
@@ -106,7 +134,7 @@ const MarkAttendance = () => {
                 </button>
                 <div>
                     <h3 className="fw-bold m-0">Mark Attendance</h3>
-                    <small className="text-secondary">{batchName}</small>
+                    <small className="text-secondary">{sessionBatchName || 'Coach session timer'}</small>
                 </div>
             </div>
 

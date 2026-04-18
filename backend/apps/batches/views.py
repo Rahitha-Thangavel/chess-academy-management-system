@@ -26,6 +26,8 @@ class BatchViewSet(viewsets.ModelViewSet):
     search_fields = ['batch_name', 'id']
 
     def perform_create(self, serializer):
+        if self.request.user.role != 'ADMIN':
+            raise PermissionDenied('Only Admin can create class schedules.')
         batch = serializer.save()
         # Notify all coaches about new batch
         from apps.notifications.utils import create_notification
@@ -42,6 +44,8 @@ class BatchViewSet(viewsets.ModelViewSet):
                 )
 
     def perform_update(self, serializer):
+        if self.request.user.role != 'ADMIN':
+            raise PermissionDenied('Only Admin can update class schedules.')
         old_coach = self.get_object().coach_user
         batch = serializer.save()
         new_coach = batch.coach_user
@@ -55,6 +59,11 @@ class BatchViewSet(viewsets.ModelViewSet):
                 message=f'You have been assigned to batch "{batch.batch_name}".',
                 target_url='/coach/batches'
             )
+
+    def perform_destroy(self, instance):
+        if self.request.user.role != 'ADMIN':
+            raise PermissionDenied('Only Admin can delete class schedules.')
+        instance.delete()
 
     @action(detail=False, methods=['get'])
     def unassigned(self, request):
@@ -71,9 +80,13 @@ class BatchViewSet(viewsets.ModelViewSet):
         from django.db.models import Count, F
         # Filter batches that are NOT full.
         # We need to assume max_students is a field.
-        batches = Batch.objects.annotate(student_count=Count('enrollments')).filter(student_count__lt=F('max_students'))
-        
+        batches = Batch.objects.annotate(student_count=Count('enrollments')).filter(
+            student_count__lt=F('max_students'),
+            status='ACTIVE',
+        )
+
         serializer = self.get_serializer(batches, many=True)
+        return Response(serializer.data)
     @action(detail=False, methods=['get'])
     def happening_now(self, request):
         """Find batches happening at this current day and time."""

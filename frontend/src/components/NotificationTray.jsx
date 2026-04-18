@@ -1,25 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api/axiosInstance';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import { normalizeNotificationTarget } from '../utils/notificationRoutes';
 
 const NotificationTray = () => {
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef(null);
     const navigate = useNavigate();
     const { user } = useAuth();
+    const {
+        notifications,
+        unreadCount,
+        fetchNotifications,
+        markRead,
+        markAllRead,
+    } = useNotifications();
 
     useEffect(() => {
         if (user) {
             fetchNotifications();
-            fetchUnreadCount();
-            const interval = setInterval(() => {
-                fetchNotifications();
-                fetchUnreadCount();
-            }, 60000); // Poll every minute
-            return () => clearInterval(interval);
         }
     }, [user]);
 
@@ -33,47 +33,18 @@ const NotificationTray = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const fetchNotifications = async () => {
-        try {
-            const response = await axios.get('/api/notifications/');
-            setNotifications(response.data);
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
-        }
-    };
-
-    const fetchUnreadCount = async () => {
-        try {
-            const response = await axios.get('/api/notifications/unread_count/');
-            setUnreadCount(response.data.count);
-        } catch (error) {
-            console.error('Error fetching unread count:', error);
-        }
-    };
-
     const handleNotificationClick = async (notif) => {
         try {
             if (!notif.is_read) {
-                await axios.post(`/api/notifications/${notif.id}/mark_read/`);
-                fetchUnreadCount();
-                setNotifications(notifications.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+                await markRead(notif.id);
             }
             setShowDropdown(false);
-            if (notif.target_url) {
-                navigate(notif.target_url);
+            const targetUrl = normalizeNotificationTarget(notif.target_url);
+            if (targetUrl) {
+                navigate(targetUrl);
             }
         } catch (error) {
             console.error('Error marking notification as read:', error);
-        }
-    };
-
-    const markAllRead = async () => {
-        try {
-            await axios.post('/api/notifications/mark_all_read/');
-            setUnreadCount(0);
-            setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-        } catch (error) {
-            console.error('Error marking all as read:', error);
         }
     };
 
@@ -113,7 +84,7 @@ const NotificationTray = () => {
                     <div className="p-3 border-bottom d-flex justify-content-between align-items-center bg-light sticky-top">
                         <h6 className="m-0 fw-bold text-dark">Notifications</h6>
                         {unreadCount > 0 && (
-                            <button className="btn btn-link btn-sm text-decoration-none p-0 text-success fw-bold" style={{ fontSize: '0.75rem' }} onClick={markAllRead}>
+                            <button className="btn btn-link btn-sm text-decoration-none p-0 text-success fw-bold" style={{ fontSize: '0.75rem' }} onClick={() => markAllRead()}>
                                 Mark all read
                             </button>
                         )}

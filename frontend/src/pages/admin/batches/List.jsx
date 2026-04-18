@@ -4,7 +4,7 @@ import { Modal, Button, Form, Table, Badge, Tab, Tabs } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
-const BatchList = () => {
+const BatchList = ({ allowCreate = true, allowEdit = true, showApplications = true }) => {
     const navigate = useNavigate();
     const [batches, setBatches] = useState([]);
     const [applications, setApplications] = useState([]);
@@ -148,9 +148,11 @@ const BatchList = () => {
         <div className="container-fluid p-4">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h4 className="text-secondary fw-bold m-0">Batch Management</h4>
-                <Button variant="success" onClick={() => { resetBatchForm(); setShowBatchModal(true); }}>
-                    <i className="bi bi-plus-lg me-2"></i>Create New Batch
-                </Button>
+                {allowCreate ? (
+                    <Button variant="success" onClick={() => { resetBatchForm(); setShowBatchModal(true); }}>
+                        <i className="bi bi-plus-lg me-2"></i>Create New Batch
+                    </Button>
+                ) : null}
             </div>
 
             <Tabs defaultActiveKey="batches" className="mb-4 custom-tabs">
@@ -251,9 +253,11 @@ const BatchList = () => {
                                                 <Button variant="light" size="sm" className="btn-icon" onClick={() => { setCurrentBatch(batch); setShowViewModal(true); }}>
                                                     <i className="bi bi-eye"></i>
                                                 </Button>
-                                                <Button variant="light" size="sm" className="btn-icon" onClick={() => { setCurrentBatch(batch); setShowBatchModal(true); }}>
-                                                    <i className="bi bi-pencil"></i>
-                                                </Button>
+                                                {allowEdit ? (
+                                                    <Button variant="light" size="sm" className="btn-icon" onClick={() => { setCurrentBatch(batch); setShowBatchModal(true); }}>
+                                                        <i className="bi bi-pencil"></i>
+                                                    </Button>
+                                                ) : null}
                                             </div>
                                         </td>
                                     </tr>
@@ -263,6 +267,7 @@ const BatchList = () => {
                     </div>
                 </Tab>
 
+                {showApplications ? (
                 <Tab eventKey="applications" title="Coach Applications">
                     <div className="card shadow-sm border-0 rounded-4 overflow-hidden">
                         <Table hover responsive className="m-0 align-middle">
@@ -304,10 +309,11 @@ const BatchList = () => {
                         </Table>
                     </div>
                 </Tab>
+                ) : null}
             </Tabs>
 
             {/* Create/Edit Modal */}
-            <Modal show={showBatchModal} onHide={() => setShowBatchModal(false)} centered size="lg" className="rounded-4">
+            <Modal show={showBatchModal && (allowCreate || allowEdit)} onHide={() => setShowBatchModal(false)} centered size="lg" className="rounded-4">
                 <Modal.Header closeButton className="border-0 pb-0">
                     <Modal.Title className="fw-bold">{currentBatch.id ? 'Edit Batch' : 'Create New Batch'}</Modal.Title>
                 </Modal.Header>

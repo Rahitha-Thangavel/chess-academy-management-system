@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const AddChild = () => {
+    const { notifyError } = useAppUI();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -28,7 +30,7 @@ const AddChild = () => {
             const errorMsg = error.response?.data?.errors
                 ? JSON.stringify(error.response.data.errors)
                 : error.response?.data?.error || 'Failed to register student. Please try again.';
-            alert(`Failed to register: ${errorMsg}`);
+            notifyError(`Failed to register: ${errorMsg}`);
         } finally {
             setLoading(false);
         }

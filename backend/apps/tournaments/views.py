@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
+from datetime import datetime
 from .models import Tournament, TournamentRegistration, TournamentMatch
 from .serializers import (
     TournamentSerializer, TournamentRegistrationSerializer, 
@@ -15,6 +16,51 @@ class TournamentViewSet(viewsets.ModelViewSet):
     queryset = Tournament.objects.all()
     serializer_class = TournamentSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def _get_window_state(self, tournament):
+        now = timezone.localtime()
+        today = now.date()
+        if tournament.tournament_date > today:
+            opens_at = datetime.combine(tournament.tournament_date, tournament.start_time, tzinfo=now.tzinfo)
+            return {
+                'status': 'UPCOMING',
+                'is_registration_open': True,
+                'is_management_open': False,
+                'message': 'Tournament has not started yet.',
+                'opens_at': opens_at,
+            }
+        if tournament.tournament_date < today:
+            return {
+                'status': 'FINISHED',
+                'is_registration_open': False,
+                'is_management_open': False,
+                'message': 'Tournament has already finished.',
+                'opens_at': None,
+            }
+        if now.time() < tournament.start_time:
+            opens_at = datetime.combine(tournament.tournament_date, tournament.start_time, tzinfo=now.tzinfo)
+            return {
+                'status': 'BEFORE_START',
+                'is_registration_open': True,
+                'is_management_open': False,
+                'message': 'Tournament attendance will open at the tournament start time.',
+                'opens_at': opens_at,
+            }
+        if now.time() > tournament.end_time:
+            return {
+                'status': 'FINISHED',
+                'is_registration_open': False,
+                'is_management_open': False,
+                'message': 'Tournament has already finished.',
+                'opens_at': None,
+            }
+        return {
+            'status': 'OPEN',
+            'is_registration_open': False,
+            'is_management_open': True,
+            'message': 'Tournament is active now.',
+            'opens_at': None,
+        }
 
     def perform_create(self, serializer):
         if self.request.user.role != 'ADMIN':
@@ -63,6 +109,10 @@ class TournamentRegistrationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role not in ['PARENT', 'ADMIN', 'CLERK']:
             raise PermissionDenied('Not allowed to register for tournaments.')
+        tournament = serializer.validated_data['tournament']
+        tournament_state = TournamentViewSet()._get_window_state(tournament)
+        if not tournament_state['is_registration_open']:
+            raise PermissionDenied('Registration is closed for this tournament.')
 
         reg = serializer.save(registered_by=user)
         # Notify Admins
@@ -90,10 +140,13 @@ class TournamentRegistrationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        if request.user.role != 'ADMIN':
-            raise PermissionDenied('Only Admin can approve tournament registrations.')
+        if request.user.role not in ['ADMIN', 'CLERK']:
+            raise PermissionDenied('Only Admin or Clerk can approve tournament registrations.')
 
         reg = self.get_object()
+        tournament_state = TournamentViewSet()._get_window_state(reg.tournament)
+        if not tournament_state['is_registration_open']:
+            raise PermissionDenied('This tournament is no longer accepting participant changes.')
         reg.status = 'APPROVED'
         reg.save()
         
@@ -111,10 +164,13 @@ class TournamentRegistrationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
-        if request.user.role != 'ADMIN':
-            raise PermissionDenied('Only Admin can reject tournament registrations.')
+        if request.user.role not in ['ADMIN', 'CLERK']:
+            raise PermissionDenied('Only Admin or Clerk can reject tournament registrations.')
 
         reg = self.get_object()
+        tournament_state = TournamentViewSet()._get_window_state(reg.tournament)
+        if not tournament_state['is_registration_open']:
+            raise PermissionDenied('This tournament is no longer accepting participant changes.')
         reg.status = 'REJECTED'
         reg.save()
         
@@ -140,6 +196,9 @@ class TournamentRegistrationViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Unauthorized.')
 
         reg = self.get_object()
+        tournament_state = TournamentViewSet()._get_window_state(reg.tournament)
+        if not tournament_state['is_registration_open']:
+            raise PermissionDenied('This tournament is no longer accepting participant changes.')
         reg.status = 'APPROVED'
 
         tournament_fee = reg.tournament.entry_fee
@@ -170,6 +229,9 @@ class TournamentRegistrationViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Unauthorized.')
 
         reg = self.get_object()
+        tournament_state = TournamentViewSet()._get_window_state(reg.tournament)
+        if not tournament_state['is_management_open']:
+            raise PermissionDenied('Tournament attendance is only available during the tournament time.')
         attendance_status = request.data.get('attendance_status') or request.data.get('attended')
         if attendance_status not in ['PRESENT', 'ABSENT', None]:
             return Response({'error': 'Invalid attendance_status.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -202,27 +264,34 @@ class TournamentMatchViewSet(viewsets.ModelViewSet):
         return TournamentMatch.objects.none()
 
     def perform_create(self, serializer):
-        if self.request.user.role not in ['ADMIN', 'CLERK']:
-            raise PermissionDenied('Unauthorized.')
+        if self.request.user.role != 'ADMIN':
+            raise PermissionDenied('Only Admin can create tournament matches.')
+        tournament = serializer.validated_data['tournament']
+        tournament_state = TournamentViewSet()._get_window_state(tournament)
+        if tournament_state['status'] == 'FINISHED':
+            raise PermissionDenied('Cannot add matches after the tournament has finished.')
         serializer.save()
 
     def perform_update(self, serializer):
-        if self.request.user.role not in ['ADMIN', 'CLERK']:
-            raise PermissionDenied('Unauthorized.')
+        if self.request.user.role != 'ADMIN':
+            raise PermissionDenied('Only Admin can update tournament matches.')
         serializer.save()
 
     def perform_destroy(self, instance):
-        if self.request.user.role not in ['ADMIN', 'CLERK']:
-            raise PermissionDenied('Unauthorized.')
+        if self.request.user.role != 'ADMIN':
+            raise PermissionDenied('Only Admin can delete tournament matches.')
         instance.delete()
 
     @action(detail=True, methods=['post'])
     def record_result(self, request, pk=None):
         """[R27] Record match outcome."""
-        if request.user.role not in ['ADMIN', 'CLERK']:
-            raise PermissionDenied('Unauthorized.')
+        if request.user.role != 'ADMIN':
+            raise PermissionDenied('Only Admin can record tournament results.')
 
         match = self.get_object()
+        tournament_state = TournamentViewSet()._get_window_state(match.tournament)
+        if not tournament_state['is_management_open']:
+            raise PermissionDenied('Match results can only be recorded while the tournament is active.')
         winner_id = request.data.get('winner_id')
         result_details = request.data.get('result_details', '')
 

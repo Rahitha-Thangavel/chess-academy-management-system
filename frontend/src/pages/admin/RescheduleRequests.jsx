@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { Modal, Button, Form } from 'react-bootstrap';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const RescheduleRequests = () => {
+    const { notifySuccess, notifyError } = useAppUI();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -38,13 +40,13 @@ const RescheduleRequests = () => {
         try {
             const endpoint = `/reschedule-requests/${currentReq.id}/${actionType}/`;
             await axios.post(endpoint, { admin_comment: adminComment });
-            alert(`Request ${actionType}d successfully!`);
+            notifySuccess(`Request ${actionType}d successfully.`);
             setShowModal(false);
             fetchRequests();
         } catch (error) {
             console.error(`Error ${actionType}ing request:`, error.response?.data || error);
             const errorMsg = error.response?.data ? JSON.stringify(error.response.data) : 'Failed to approve request. Please check connection and permissions.';
-            alert(`Error: ${errorMsg}`);
+            notifyError(errorMsg);
         }
     };
 

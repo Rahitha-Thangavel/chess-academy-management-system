@@ -2,9 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from '../../api/axiosInstance';
+import { useAppUI } from '../../contexts/AppUIContext';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { normalizeNotificationTarget } from '../../utils/notificationRoutes';
 
 const Dashboard = () => {
+  const { notifySuccess, notifyError } = useAppUI();
   const { user } = useAuth();
+  const { markRead } = useNotifications();
   const navigate = useNavigate();
   const [statsData, setStatsData] = useState(null);
   const [batches, setBatches] = useState([]);
@@ -62,32 +67,34 @@ const Dashboard = () => {
   const handleClockIn = async (batchId) => {
     try {
       await axios.post('/coaches/clock_in/', { batch_id: batchId });
-      alert('Clocked in successfully!');
+      notifySuccess('Clocked in successfully.');
       fetchTodayAttendance();
     } catch (error) {
-      alert('Failed to clock in.');
+      notifyError('Failed to clock in.');
     }
   };
 
   const handleClockOut = async (batchId) => {
     try {
       await axios.post('/coaches/clock_out/', { batch_id: batchId });
-      alert('Clocked out successfully!');
+      notifySuccess('Clocked out successfully.');
       fetchTodayAttendance();
     } catch (error) {
-      alert('Failed to clock out.');
+      notifyError('Failed to clock out.');
     }
   };
 
   const handleNotificationClick = async (notif) => {
     try {
       if (!notif.is_read) {
-        await axios.post(`/api/notifications/${notif.id}/mark_read/`);
+        await markRead(notif.id);
       }
-      if (notif.target_url) window.location.href = notif.target_url;
+      const targetUrl = normalizeNotificationTarget(notif.target_url);
+      if (targetUrl) navigate(targetUrl);
     } catch (err) {
       console.error('Error marking notification as read:', err);
-      if (notif.target_url) window.location.href = notif.target_url;
+      const targetUrl = normalizeNotificationTarget(notif.target_url);
+      if (targetUrl) navigate(targetUrl);
     }
   };
 

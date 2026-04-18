@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const NewRescheduleRequest = () => {
+    const { notifySuccess, notifyError } = useAppUI();
     const navigate = useNavigate();
     const [children, setChildren] = useState([]);
     const [selectedChild, setSelectedChild] = useState('');
@@ -35,12 +37,12 @@ const NewRescheduleRequest = () => {
                 preferred_date: preferredDate,
                 reason: reason
             });
-            alert('Reschedule request submitted successfully!');
+            notifySuccess('Reschedule request submitted successfully.');
             navigate('/parent/reschedule');
         } catch (error) {
             console.error('Error submitting request:', error.response?.data || error);
             const errorMsg = error.response?.data ? JSON.stringify(error.response.data) : 'Failed to submit request. Please ensure all fields are filled correctly.';
-            alert(`Error: ${errorMsg}`);
+            notifyError(errorMsg);
         }
     };
 

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { authStorage } from '../utils/authStorage';
 
 // Create axios instance
 const axiosInstance = axios.create({
@@ -11,7 +12,8 @@ const axiosInstance = axios.create({
 // Request interceptor to add auth token
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    authStorage.migrateFromLocalStorage();
+    const token = authStorage.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -38,13 +40,10 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
+        const refreshToken = authStorage.getRefreshToken();
 
         if (!refreshToken) {
-          // No refresh token, logout user
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user');
+          authStorage.clearSession();
           window.location.href = '/login';
           return Promise.reject(error);
         }
@@ -57,8 +56,7 @@ axiosInstance.interceptors.response.use(
 
         const { access } = response.data;
 
-        // Store new tokens
-        localStorage.setItem('access_token', access);
+        authStorage.setSession({ access });
 
         // Update authorization header
         originalRequest.headers.Authorization = `Bearer ${access}`;
@@ -66,10 +64,7 @@ axiosInstance.interceptors.response.use(
         // Retry original request
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        // Refresh failed, logout user
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user');
+        authStorage.clearSession();
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }

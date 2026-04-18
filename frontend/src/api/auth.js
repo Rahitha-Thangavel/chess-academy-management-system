@@ -1,4 +1,5 @@
 import axiosInstance from './axiosInstance';
+import { authStorage } from '../utils/authStorage';
 
 export const authAPI = {
   // Register user
@@ -18,7 +19,7 @@ export const authAPI = {
 
   // Logout user
   logout: async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = authStorage.getRefreshToken();
     if (refreshToken) {
       try {
         await axiosInstance.post('/auth/logout/', { refresh: refreshToken });
@@ -27,10 +28,7 @@ export const authAPI = {
       }
     }
     
-    // Clear local storage
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    authStorage.clearSession();
   },
 
   // Get user profile

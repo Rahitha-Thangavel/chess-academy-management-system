@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const TournamentRegistration = () => {
+    const { notifySuccess, notifyError } = useAppUI();
     const navigate = useNavigate();
     const { id } = useParams();
     const [tournament, setTournament] = useState(null);
@@ -26,9 +28,8 @@ const TournamentRegistration = () => {
 
     const fetchChildren = async () => {
         try {
-            // Need an endpoint for parent's children. Assuming /students/ handles it or filter by parent.
-            const response = await axios.get('/students/');
-            setChildren(response.data);
+            const response = await axios.get('/students/my_children/');
+            setChildren((response.data || []).filter((child) => child.status === 'ACTIVE'));
         } catch (error) {
             console.error('Error fetching children:', error);
         } finally {
@@ -43,11 +44,11 @@ const TournamentRegistration = () => {
                 tournament: id,
                 student: selectedChild
             });
-            alert('Registration successful!');
+            notifySuccess('Registration successful.');
             navigate('/parent/tournaments');
         } catch (error) {
             console.error('Error registering:', error);
-            alert('Registration failed. Already registered?');
+            notifyError('Registration failed. Already registered?');
         }
     };
 
@@ -65,7 +66,7 @@ const TournamentRegistration = () => {
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div className="p-4 bg-success text-white" style={{ backgroundColor: '#6c9343 !important' }}>
                     <h5 className="fw-bold m-0">{tournament.tournament_name}</h5>
-                    <p className="m-0 small opacity-75">{new Date(tournament.tournament_date).toLocaleDateString()} | {tournament.venue}</p>
+                    <p className="m-0 small opacity-75">{new Date(tournament.tournament_date).toLocaleDateString()} | {tournament.start_time?.slice(0, 5)} - {tournament.end_time?.slice(0, 5)} | {tournament.venue}</p>
                 </div>
 
                 <div className="p-5 bg-white">

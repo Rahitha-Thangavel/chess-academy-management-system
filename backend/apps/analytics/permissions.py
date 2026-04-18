@@ -1,16 +1,12 @@
 from rest_framework import permissions
 
-class IsStaffOrCoach(permissions.BasePermission):
+class IsAnalyticsUser(permissions.BasePermission):
     """
-    Allows access to Admin, Clerk, and Coach (for their own data).
+    Allows analytics access to Admin, Coach, and Parent.
+    Clerks are intentionally blocked from reports/analytics.
     """
+
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        # Admin and Clerk have full access to reports
-        if request.user.role in ['ADMIN', 'CLERK']:
-            return True
-        # Coaches can also access (logic for 'own data' should be in ViewSet if specific filtering needed)
-        if request.user.role == 'COACH':
-            return True
-        return False
+        return request.user.role in ['ADMIN', 'COACH', 'PARENT']

@@ -1,132 +1,190 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import axios from '../../api/axiosInstance';
+import { useAppUI } from '../../contexts/AppUIContext';
+
+const dayOrder = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const dayLabels = {
+    MON: 'Monday',
+    TUE: 'Tuesday',
+    WED: 'Wednesday',
+    THU: 'Thursday',
+    FRI: 'Friday',
+    SAT: 'Saturday',
+    SUN: 'Sunday',
+};
 
 const Schedule = () => {
-    // Mock Data for a Weekly View
-    const weekStart = "October 13";
-    const weekEnd = "October 19, 2025";
+    const { notifySuccess, notifyError } = useAppUI();
+    const [batches, setBatches] = useState([]);
+    const [formState, setFormState] = useState({});
 
-    // Simple mock structure for the calendar visual
-    const timeSlots = [
-        "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-        "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM", "7:00 PM"
-    ];
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [batchesRes, availabilityRes] = await Promise.all([
+                    axios.get('/batches/'),
+                    axios.get('/availability/'),
+                ]);
 
-    const classes = [
-        { day: 'Mon', time: '9:00 AM', duration: 1, title: 'Beginner Batch', room: 'Room 1' },
-        { day: 'Wed', time: '9:00 AM', duration: 1, title: 'Beginner Batch', room: 'Room 1' },
-        { day: 'Fri', time: '9:00 AM', duration: 1, title: 'Beginner Batch', room: 'Room 1' },
+                setBatches(Array.isArray(batchesRes.data) ? batchesRes.data : []);
 
-        { day: 'Tue', time: '11:00 AM', duration: 1, title: 'Intermediate Batch', room: 'Room 1' },
-        { day: 'Thu', time: '11:00 AM', duration: 1, title: 'Intermediate Batch', room: 'Room 1' },
+                const initialState = {};
+                (Array.isArray(availabilityRes.data) ? availabilityRes.data : []).forEach((slot) => {
+                    initialState[slot.day_of_week] = {
+                        id: slot.id,
+                        enabled: true,
+                        start_time: slot.start_time,
+                        end_time: slot.end_time,
+                    };
+                });
+                dayOrder.forEach((day) => {
+                    if (!initialState[day]) {
+                        initialState[day] = { id: null, enabled: false, start_time: '09:00', end_time: '17:00' };
+                    }
+                });
+                setFormState(initialState);
+            } catch (error) {
+                console.error('Failed to load schedule data:', error);
+            }
+        };
 
-        { day: 'Mon', time: '2:00 PM', duration: 1, title: 'Advanced Batch', room: 'Room 2' },
-        { day: 'Wed', time: '2:00 PM', duration: 1, title: 'Advanced Batch', room: 'Room 2' },
-        { day: 'Fri', time: '2:00 PM', duration: 1, title: 'Advanced Batch', room: 'Room 2' },
+        fetchData();
+    }, []);
 
-        { day: 'Tue', time: '4:00 PM', duration: 1, title: 'Competition Prep', room: 'Room 2' },
-        { day: 'Thu', time: '4:00 PM', duration: 1, title: 'Competition Prep', room: 'Room 2' },
-    ];
+    const groupedBatches = useMemo(() => {
+        const groups = {};
+        dayOrder.forEach((day) => {
+            groups[day] = batches.filter((batch) => batch.schedule_day === day);
+        });
+        return groups;
+    }, [batches]);
 
-    const getEvent = (day, time) => {
-        return classes.find(c => c.day === day && c.time === time);
+    const handleSaveAvailability = async () => {
+        try {
+            for (const day of dayOrder) {
+                const value = formState[day];
+                if (!value) continue;
+
+                if (value.enabled && value.id) {
+                    await axios.put(`/availability/${value.id}/`, {
+                        day_of_week: day,
+                        start_time: value.start_time,
+                        end_time: value.end_time,
+                    });
+                } else if (value.enabled && !value.id) {
+                    await axios.post('/availability/', {
+                        day_of_week: day,
+                        start_time: value.start_time,
+                        end_time: value.end_time,
+                    });
+                } else if (!value.enabled && value.id) {
+                    await axios.delete(`/availability/${value.id}/`);
+                }
+            }
+
+            notifySuccess('Availability updated successfully.');
+        } catch (error) {
+            console.error('Failed to save availability:', error);
+            notifyError('Failed to save availability.');
+        }
     };
 
     return (
         <div className="container-fluid p-0">
             <h3 className="fw-bold mb-4">Schedule</h3>
 
-            {/* Calendar Controls */}
-            <div className="bg-white p-3 rounded-3 shadow-sm d-flex justify-content-between align-items-center mb-4">
-                <button className="btn btn-light rounded-circle"><i className="bi bi-chevron-left"></i></button>
-                <div className="text-center">
-                    <h5 className="fw-bold m-0">{weekStart} - {weekEnd}</h5>
+            <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div className="p-3 bg-light border-bottom">
+                    <h6 className="fw-bold m-0">My Assigned Classes</h6>
                 </div>
-                <div className="d-flex align-items-center gap-2">
-                    <button className="btn btn-light rounded-circle"><i className="bi bi-chevron-right"></i></button>
-                    <div className="btn-group ms-3">
-                        <button className="btn btn-outline-success btn-sm active" style={{ backgroundColor: '#6c9343', color: 'white' }}>Week</button>
-                        <button className="btn btn-outline-secondary btn-sm">Month</button>
-                    </div>
+                <div className="p-4">
+                    {batches.length === 0 ? (
+                        <div className="text-center text-muted py-3">No classes assigned yet.</div>
+                    ) : (
+                        <div className="row g-3">
+                            {dayOrder.map((day) => (
+                                groupedBatches[day]?.length > 0 && (
+                                    <div key={day} className="col-md-6 col-xl-4">
+                                        <div className="border rounded-4 h-100 p-3 bg-light">
+                                            <div className="fw-bold text-success mb-3">{dayLabels[day]}</div>
+                                            <div className="d-flex flex-column gap-2">
+                                                {groupedBatches[day].map((batch) => (
+                                                    <div key={batch.id} className="bg-white border rounded-3 p-3">
+                                                        <div className="fw-bold">{batch.batch_name}</div>
+                                                        <div className="small text-muted">{batch.start_time} - {batch.end_time}</div>
+                                                        <div className="small text-muted">{batch.batch_type?.replace('_', ' ') || 'Recurring batch'}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Weekly Calendar Grid */}
-            <div className="card border-0 shadow-sm p-4 mb-5" style={{ borderRadius: '12px', overflowX: 'auto' }}>
-                <div style={{ minWidth: '800px' }}>
-                    <div className="d-flex border-bottom pb-2 mb-2">
-                        <div style={{ width: '10%' }} className="fw-bold small text-secondary">Time</div>
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                            <div key={day} style={{ width: '12.8%' }} className="fw-bold small text-secondary text-center">{day}</div>
-                        ))}
+            <div className="card border-0 shadow-sm p-4 rounded-4">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h5 className="fw-bold mb-1">Set Availability</h5>
+                        <p className="text-muted small m-0">Admins can assign you only within these declared time slots.</p>
                     </div>
+                    <button className="btn text-white fw-bold px-4" style={{ backgroundColor: '#6c9343' }} onClick={handleSaveAvailability}>
+                        Save Availability
+                    </button>
+                </div>
 
-                    <div className="d-flex flex-column gap-2">
-                        {timeSlots.map(time => (
-                            <div key={time} className="d-flex" style={{ height: '80px' }}>
-                                <div style={{ width: '10%' }} className="small text-muted pt-1 border-end pe-2 text-end">{time}</div>
-                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
-                                    const event = getEvent(day, time);
-                                    return (
-                                        <div key={day} style={{ width: '12.8%' }} className="border-bottom border-end p-1">
-                                            {event && (
-                                                <div className="bg-success-subtle p-2 rounded-2 h-100 border-start border-4 border-success">
-                                                    <div className="fw-bold small text-dark" style={{ fontSize: '0.8rem' }}>{event.title}</div>
-                                                    <div className="text-muted" style={{ fontSize: '0.7rem' }}>{event.room}</div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                <div className="row g-3">
+                    {dayOrder.map((day) => (
+                        <div key={day} className="col-md-6">
+                            <div className="border rounded-4 p-3 h-100">
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <div className="fw-bold">{dayLabels[day]}</div>
+                                    <div className="form-check form-switch m-0">
+                                        <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            checked={!!formState[day]?.enabled}
+                                            onChange={(e) => setFormState({
+                                                ...formState,
+                                                [day]: { ...formState[day], enabled: e.target.checked },
+                                            })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="row g-2">
+                                    <div className="col-6">
+                                        <label className="form-label small text-muted">Start</label>
+                                        <input
+                                            type="time"
+                                            className="form-control"
+                                            value={formState[day]?.start_time || '09:00'}
+                                            disabled={!formState[day]?.enabled}
+                                            onChange={(e) => setFormState({
+                                                ...formState,
+                                                [day]: { ...formState[day], start_time: e.target.value },
+                                            })}
+                                        />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label small text-muted">End</label>
+                                        <input
+                                            type="time"
+                                            className="form-control"
+                                            value={formState[day]?.end_time || '17:00'}
+                                            disabled={!formState[day]?.enabled}
+                                            onChange={(e) => setFormState({
+                                                ...formState,
+                                                [day]: { ...formState[day], end_time: e.target.value },
+                                            })}
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Availability Settings */}
-            <div className="card border-0 shadow-sm p-4" style={{ borderRadius: '12px' }}>
-                <h5 className="fw-bold mb-4">Set Availability</h5>
-
-                <div className="table-responsive mb-4">
-                    <table className="table table-borderless align-middle">
-                        <thead>
-                            <tr className="text-secondary small">
-                                <th></th>
-                                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => (
-                                    <th key={d} className="fw-bold">{d}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td className="fw-bold small text-secondary">Available</td>
-                                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((d, i) => (
-                                    <td key={d}>
-                                        <div className="form-check d-flex justify-content-center">
-                                            <input
-                                                className="form-check-input"
-                                                type="checkbox"
-                                                defaultChecked={i < 6}
-                                                style={{ backgroundColor: i < 6 ? '#0d6efd' : '', borderColor: '#0d6efd' }}
-                                            />
-                                        </div>
-                                    </td>
-                                ))}
-                            </tr>
-                            <tr>
-                                <td className="fw-bold small text-secondary">Timing</td>
-                                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((d, i) => (
-                                    <td key={d} className="small text-muted text-center">
-                                        {i < 6 ? '8:00 AM - 6:00 PM' : '-'}
-                                    </td>
-                                ))}
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="text-end">
-                    <button className="btn text-white px-4 py-2 fw-bold" style={{ backgroundColor: '#6c9343' }}>Save Availability</button>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

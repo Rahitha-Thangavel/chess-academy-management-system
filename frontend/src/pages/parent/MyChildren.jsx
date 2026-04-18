@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
 import { Modal, Button } from 'react-bootstrap';
+import { useAppUI } from '../../contexts/AppUIContext';
 
 const MyChildren = () => {
+    const { notifySuccess, notifyError, notifyInfo } = useAppUI();
     const navigate = useNavigate();
     const [children, setChildren] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -63,7 +65,7 @@ const MyChildren = () => {
         // If child.enrollments is available
         const currentEnrollments = child.enrollments ? child.enrollments.length : 0;
         if (currentEnrollments >= 2) {
-            alert("Maximum 2 batches allowed per student.");
+            notifyInfo('Maximum 2 batches allowed per student.');
             return;
         }
 
@@ -90,10 +92,10 @@ const MyChildren = () => {
             });
             setShowEnrollModal(false);
             fetchChildren(); // Refresh to show new enrollment status
-            alert("Enrolled successfully!");
+            notifySuccess('Enrolled successfully.');
         } catch (err) {
             console.error(err);
-            alert("Enrollment failed: " + (err.response?.data?.error || err.message));
+            notifyError(`Enrollment failed: ${err.response?.data?.error || err.message}`);
         }
     };
 

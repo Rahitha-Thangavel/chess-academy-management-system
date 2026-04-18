@@ -1,8 +1,9 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const location = useLocation();
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -16,7 +17,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ reason: 'session_expired', from: location.pathname }} />;
   }
 
   // Check if user has required role

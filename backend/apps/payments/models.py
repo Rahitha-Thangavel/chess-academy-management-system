@@ -102,3 +102,34 @@ class Salary(models.Model):
 
     def __str__(self):
         return f"{self.coach_user} - {self.payment_period}"
+
+
+class Expense(models.Model):
+    class ExpenseCategory(models.TextChoices):
+        RENT = 'RENT', _('Rent')
+        ELECTRICITY = 'ELECTRICITY', _('Electricity / Current Bill')
+        CLEANING = 'CLEANING', _('Cleaning Salary')
+        CLERK_SALARY = 'CLERK_SALARY', _('Clerk Salary')
+        MAINTENANCE = 'MAINTENANCE', _('Maintenance')
+        INTERNET = 'INTERNET', _('Internet')
+        TOURNAMENT_PRIZES = 'TOURNAMENT_PRIZES', _('Tournament Gifts / Prizes')
+
+    title = models.CharField(max_length=120)
+    category = models.CharField(max_length=20, choices=ExpenseCategory.choices)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    expense_date = models.DateField()
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorded_expenses',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-expense_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.expense_date} - {self.amount}"
