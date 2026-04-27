@@ -1,0 +1,94 @@
+/* Reset and base styles */
+:root {
+  --primary-green: #228B22; /* Forest Green */
+  --dark-green: #006400;   /* Dark Green for hover/active */
+  --sage-green: #8FBC8F;   /* Sage Green for accents */
+  --soft-white: #F8F9FA;   /* Off-white background */
+  --chess-black: #1a1a1a;
+  --text-main: #2C3E50;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--soft-white);
+  color: var(--text-main);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Utility Classes */
+.vh-100 {
+  min-height: 100vh;
+}
+
+.text-primary {
+  color: var(--primary-green) !important;
+}
+
+.bg-primary {
+  background-color: var(--primary-green) !important;
+}
+
+.btn-primary {
+  background-color: var(--primary-green);
+  border-color: var(--primary-green);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--dark-green);
+  border-color: var(--dark-green);
+}
+
+.btn-outline-primary {
+  color: var(--primary-green);
+  border-color: var(--primary-green);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary-green);
+  color: white;
+}
+
+.card {
+  border: none;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.auth-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--sage-green) 0%, var(--soft-white) 100%);
+}
+
+.auth-card {
+  background: white;
+  border-radius: 15px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .auth-card {
+    padding: 1.5rem;
+    margin: 10px;
+  }
+}

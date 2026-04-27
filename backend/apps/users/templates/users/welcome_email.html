@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to Chess Academy</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #FF9800; color: white; padding: 20px; text-align: center; }
+        .content { padding: 30px; background: #f9f9f9; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>♟️ Welcome to Chess Academy!</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Hello {{ user.first_name }} {{ user.last_name }},</h2>
+            
+            <p>Congratulations! Your email has been successfully verified.</p>
+            
+            <p>You now have access to the Chess Academy Management System where you can:</p>
+            
+            <ul>
+                {% if user.role == 'PARENT' %}
+                <li>Register and manage your children</li>
+                <li>View attendance records</li>
+                <li>Make payments online</li>
+                <li>Register for tournaments</li>
+                {% elif user.role == 'COACH' %}
+                <li>Manage your batches and schedule</li>
+                <li>Mark student attendance</li>
+                <li>View your salary reports</li>
+                {% elif user.role == 'CLERK' %}
+                <li>Manage student registrations</li>
+                <li>Record attendance and payments</li>
+                <li>Handle tournament registrations</li>
+                {% elif user.role == 'ADMIN' %}
+                <li>Manage all academy operations</li>
+                <li>Generate reports and analytics</li>
+                <li>Configure system settings</li>
+                {% endif %}
+            </ul>
+            
+            <p>Get started by logging into your account:</p>
+            <p><a href="{{ frontend_url }}/login">{{ frontend_url }}/login</a></p>
+            
+            <p>If you have any questions, please contact our support team.</p>
+            
+            <p>Best regards,<br>
+            The Chess Academy Team</p>
+        </div>
+        
+        <div class="footer">
+            <p>© {% now "Y" %} Chess Academy. All rights reserved.</p>
+            <p>This is an automated message, please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>

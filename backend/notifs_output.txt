@@ -1,0 +1,51 @@
+Showing 50 most recent unread notifications:
+ID: 162 | Title: Application Approved | URL: /coach/batches | UserID: COA001 | Created: 2026-02-05 09:30:25.381067+00:00
+ID: 161 | Title: Application Approved | URL: /coach/batches | UserID: COA001 | Created: 2026-02-05 09:30:23.875749+00:00
+ID: 160 | Title: Registration Approved | URL: /parent/students | UserID: PAR002 | Created: 2026-02-05 09:26:58.935112+00:00
+ID: 159 | Title: Pending Student Approval | URL: /admin/students | UserID: ADM001 | Created: 2026-02-05 09:14:39.025523+00:00
+ID: 158 | Title: Student Registered | URL: /parent/students | UserID: PAR002 | Created: 2026-02-05 09:14:39.007825+00:00
+ID: 157 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR001 | Created: 2026-02-05 08:46:29.160730+00:00
+ID: 156 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR002 | Created: 2026-02-05 08:46:29.152815+00:00
+ID: 155 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR003 | Created: 2026-02-05 08:46:29.147868+00:00
+ID: 154 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR004 | Created: 2026-02-05 08:46:29.142709+00:00
+ID: 153 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR005 | Created: 2026-02-05 08:46:29.135235+00:00
+ID: 152 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR006 | Created: 2026-02-05 08:46:29.130913+00:00
+ID: 151 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR007 | Created: 2026-02-05 08:46:29.126103+00:00
+ID: 150 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR008 | Created: 2026-02-05 08:46:29.116785+00:00
+ID: 149 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR009 | Created: 2026-02-05 08:46:29.114930+00:00
+ID: 148 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR010 | Created: 2026-02-05 08:46:29.110371+00:00
+ID: 147 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR011 | Created: 2026-02-05 08:46:29.104332+00:00
+ID: 146 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR012 | Created: 2026-02-05 08:46:29.096588+00:00
+ID: 145 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR013 | Created: 2026-02-05 08:46:29.091491+00:00
+ID: 144 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR014 | Created: 2026-02-05 08:46:29.084395+00:00
+ID: 143 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR015 | Created: 2026-02-05 08:46:29.081020+00:00
+ID: 142 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR016 | Created: 2026-02-05 08:46:29.075685+00:00
+ID: 141 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR017 | Created: 2026-02-05 08:46:29.070059+00:00
+ID: 140 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR018 | Created: 2026-02-05 08:46:29.062138+00:00
+ID: 139 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR019 | Created: 2026-02-05 08:46:29.057733+00:00
+ID: 138 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR020 | Created: 2026-02-05 08:46:29.053797+00:00
+ID: 137 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR021 | Created: 2026-02-05 08:46:29.045641+00:00
+ID: 136 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR022 | Created: 2026-02-05 08:46:29.042053+00:00
+ID: 135 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR023 | Created: 2026-02-05 08:46:29.038995+00:00
+ID: 134 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR024 | Created: 2026-02-05 08:46:29.030287+00:00
+ID: 133 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR025 | Created: 2026-02-05 08:46:29.027292+00:00
+ID: 132 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR026 | Created: 2026-02-05 08:46:29.023142+00:00
+ID: 131 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR027 | Created: 2026-02-05 08:46:29.016966+00:00
+ID: 130 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR028 | Created: 2026-02-05 08:46:29.010595+00:00
+ID: 129 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR029 | Created: 2026-02-05 08:46:29.004705+00:00
+ID: 128 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR030 | Created: 2026-02-05 08:46:28.998467+00:00
+ID: 127 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR031 | Created: 2026-02-05 08:46:28.993442+00:00
+ID: 126 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR032 | Created: 2026-02-05 08:46:28.987876+00:00
+ID: 125 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR033 | Created: 2026-02-05 08:46:28.982132+00:00
+ID: 124 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR034 | Created: 2026-02-05 08:46:28.972925+00:00
+ID: 123 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR035 | Created: 2026-02-05 08:46:28.967190+00:00
+ID: 122 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR036 | Created: 2026-02-05 08:46:28.961753+00:00
+ID: 121 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR037 | Created: 2026-02-05 08:46:28.957828+00:00
+ID: 120 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR038 | Created: 2026-02-05 08:46:28.951501+00:00
+ID: 119 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR039 | Created: 2026-02-05 08:46:28.945963+00:00
+ID: 118 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR040 | Created: 2026-02-05 08:46:28.940064+00:00
+ID: 117 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR041 | Created: 2026-02-05 08:46:28.934552+00:00
+ID: 116 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR042 | Created: 2026-02-05 08:46:28.929331+00:00
+ID: 115 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR043 | Created: 2026-02-05 08:46:28.921694+00:00
+ID: 114 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR044 | Created: 2026-02-05 08:46:28.916935+00:00
+ID: 113 | Title: New Tournament Created | URL: /parent/tournaments | UserID: PAR045 | Created: 2026-02-05 08:46:28.913543+00:00

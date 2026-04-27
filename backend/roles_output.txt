@@ -1,0 +1,10 @@
+
+--- Listing Users with Role='COACH' ---
+User: Merlena.Coppinger@openmail.pro, Role: COACH, Active: True
+
+--- Listing ALL Users ---
+User: WarDel1566@openmail.pro (ID: PAR002), Role: 'PARENT', Active: True
+User: Mylicia.Manske@openmail.pro (ID: CLK001), Role: 'CLERK', Active: True
+User: Merlena.Coppinger@openmail.pro (ID: COA001), Role: 'COACH', Active: True
+User: 9JyAr3368@mailmagnet.co (ID: PAR001), Role: 'PARENT', Active: True
+User: aaagrandmasterchessacademy@gmail.com (ID: ADM001), Role: 'ADMIN', Active: True
