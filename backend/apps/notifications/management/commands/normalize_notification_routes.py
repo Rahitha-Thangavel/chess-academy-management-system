@@ -1,3 +1,7 @@
+"""Backend module: backend/apps/notifications/management/commands/normalize_notification_routes.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from django.core.management.base import BaseCommand
 
 from apps.notifications.models import Notification

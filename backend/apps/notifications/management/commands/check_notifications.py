@@ -1,3 +1,7 @@
+"""Backend module: backend/apps/notifications/management/commands/check_notifications.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Count, Q

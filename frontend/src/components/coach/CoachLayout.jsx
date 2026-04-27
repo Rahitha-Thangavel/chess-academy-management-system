@@ -1,3 +1,9 @@
+/**
+ * UI component: Coachlayout.
+ * 
+ * Reusable React UI component used across the app.
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';

@@ -1,3 +1,7 @@
+"""Batches app models.
+
+Defines Django ORM models used by the batches app."""
+
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _

@@ -1,3 +1,9 @@
+/**
+ * Page component: Unauthorized.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 

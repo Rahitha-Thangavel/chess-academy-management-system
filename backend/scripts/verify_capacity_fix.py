@@ -1,3 +1,7 @@
+"""Backend module: backend/scripts/verify_capacity_fix.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from apps.batches.models import Batch
 from apps.batches.serializers import BatchSerializer
 from django.db.models import Sum

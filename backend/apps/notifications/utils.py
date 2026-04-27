@@ -1,3 +1,7 @@
+"""Backend module: backend/apps/notifications/utils.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from .models import Notification
 
 

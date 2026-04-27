@@ -1,3 +1,7 @@
+"""Backend module: backend/apps/users/validators.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 import re

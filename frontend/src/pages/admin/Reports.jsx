@@ -1,3 +1,9 @@
+/**
+ * Page component: Reports.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from '../../api/axiosInstance';
 
@@ -234,10 +240,10 @@ const Reports = () => {
             setLoading(true);
             try {
                 const [attendanceRes, paymentsRes, salaryRes, tournamentRes, financeRes] = await Promise.all([
-                    axios.get('/analytics/reports/student_attendance/'),
-                    axios.get('/analytics/reports/payments_summary/'),
-                    axios.get('/analytics/reports/coach_salary_summary/'),
-                    axios.get('/analytics/reports/tournament_details/'),
+                    axios.get(`/analytics/reports/student_attendance/?month=${selectedMonth}&year=${selectedYear}`),
+                    axios.get(`/analytics/reports/payments_summary/?month=${selectedMonth}&year=${selectedYear}`),
+                    axios.get(`/analytics/reports/coach_salary_summary/?month=${selectedMonth}&year=${selectedYear}`),
+                    axios.get(`/analytics/reports/tournament_details/?month=${selectedMonth}&year=${selectedYear}`),
                     axios.get(`/payments/finance_summary/?month=${selectedMonth}&year=${selectedYear}`),
                 ]);
 

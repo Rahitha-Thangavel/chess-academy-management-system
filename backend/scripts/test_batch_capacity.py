@@ -1,3 +1,7 @@
+"""Backend module: backend/scripts/test_batch_capacity.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from apps.batches.models import Batch
 from apps.batches.serializers import BatchSerializer
 from rest_framework import serializers

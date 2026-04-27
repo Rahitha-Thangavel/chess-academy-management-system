@@ -1,3 +1,9 @@
+/**
+ * Page component: Attendance.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 

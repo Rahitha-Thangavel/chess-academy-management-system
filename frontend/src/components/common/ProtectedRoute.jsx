@@ -1,3 +1,9 @@
+/**
+ * UI component: Protectedroute.
+ * 
+ * Reusable React UI component used across the app.
+ */
+
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';

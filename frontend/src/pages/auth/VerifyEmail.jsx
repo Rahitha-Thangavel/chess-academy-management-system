@@ -1,3 +1,9 @@
+/**
+ * Page component: Verifyemail.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';

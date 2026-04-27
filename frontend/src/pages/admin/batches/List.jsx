@@ -1,3 +1,9 @@
+/**
+ * Page component: List.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState, useEffect } from 'react';
 import axios from '../../../api/axiosInstance';
 import { Modal, Button, Form, Table, Badge, Tab, Tabs } from 'react-bootstrap';
@@ -116,7 +122,8 @@ const BatchList = ({ allowCreate = true, allowEdit = true, showApplications = tr
             fetchApplications();
             fetchBatches();
         } catch (err) {
-            toast.error('Failed to approve');
+            const conflicts = err.response?.data?.conflicts;
+            toast.error(Array.isArray(conflicts) && conflicts.length ? conflicts[0] : 'Failed to approve');
         }
     };
 
@@ -275,6 +282,7 @@ const BatchList = ({ allowCreate = true, allowEdit = true, showApplications = tr
                                 <tr>
                                     <th className="ps-4">Coach</th>
                                     <th>Applied For</th>
+                                    <th>Conflict Check</th>
                                     <th>Date</th>
                                     <th>Status</th>
                                     <th className="text-end pe-4">Actions</th>
@@ -285,6 +293,15 @@ const BatchList = ({ allowCreate = true, allowEdit = true, showApplications = tr
                                     <tr key={app.id}>
                                         <td className="ps-4 fw-bold">{app.coach_name}</td>
                                         <td>{app.batch_name} <small className="text-muted d-block">{app.batch_schedule}</small></td>
+                                        <td>
+                                            {app.has_conflict ? (
+                                                <div className="small text-danger fw-semibold">
+                                                    {app.conflict_warning || 'Conflict detected'}
+                                                </div>
+                                            ) : (
+                                                <span className="small text-success fw-semibold">No conflict</span>
+                                            )}
+                                        </td>
                                         <td>{new Date(app.application_date).toLocaleDateString()}</td>
                                         <td>
                                             <Badge bg={app.status === 'APPROVED' ? 'success' : app.status === 'REJECTED' ? 'danger' : 'warning'}>

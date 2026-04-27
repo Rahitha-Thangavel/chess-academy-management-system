@@ -1,3 +1,7 @@
+"""Payments app views.
+
+API views/endpoints for the payments app."""
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -18,6 +22,24 @@ from apps.batches.models import BatchEnrollment, Batch
 def build_payment_period(month: int, year: int) -> str:
     month_name = calendar.month_name[int(month)] if int(month) in range(1, 13) else str(month)
     return f"{month_name} {year}"
+
+
+def parse_month_year(month_value, year_value):
+    today = timezone.now().date()
+    try:
+        month = int(month_value or today.month)
+    except (TypeError, ValueError):
+        month = today.month
+
+    try:
+        year = int(year_value or today.year)
+    except (TypeError, ValueError):
+        year = today.year
+
+    if month not in range(1, 13):
+        month = today.month
+
+    return month, year
 
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
@@ -224,6 +246,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
         # [R2, R15] Enforce computed monthly amount server-side.
         if payment_type == 'MONTHLY':
+            already_paid = Payment.objects.filter(
+                student=student,
+                payment_type='MONTHLY',
+                payment_date__month=month,
+                payment_date__year=year,
+            ).exists()
+            if already_paid:
+                raise PermissionDenied(f'Monthly fee for {build_payment_period(month, year)} has already been paid.')
             computed_amount = self._calculate_monthly_fee(student=student, month=month, year=year)
             serializer.validated_data['amount'] = computed_amount
         elif payment_type == 'TOURNAMENT':
@@ -273,9 +303,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
         if request.user.role not in ['ADMIN', 'CLERK']:
             raise PermissionDenied('Unauthorized.')
 
-        today = timezone.now().date()
-        month = int(request.query_params.get('month', today.month))
-        year = int(request.query_params.get('year', today.year))
+        month, year = parse_month_year(
+            request.query_params.get('month'),
+            request.query_params.get('year'),
+        )
         payment_period = build_payment_period(month, year)
 
         monthly_payments = Payment.objects.filter(
@@ -337,8 +368,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
         [R15] Half fee if attendee has <= 4 classes in a month.
         """
         student_id = request.query_params.get('student_id')
-        month = request.query_params.get('month') # 1-12
-        year = request.query_params.get('year') or timezone.now().year
+        month, year = parse_month_year(
+            request.query_params.get('month'),
+            request.query_params.get('year'),
+        )
         
         if not student_id:
             return Response({'error': 'student_id is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -355,7 +388,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         except Student.DoesNotExist:
             return Response({'error': 'Active student not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        fee_breakdown = self._build_monthly_fee_breakdown(student, int(month), int(year)) if month else None
+        fee_breakdown = self._build_monthly_fee_breakdown(student, month, year)
         base_monthly_fee = Decimal('2000.00')
         final_fee = fee_breakdown['calculated_fee'] if fee_breakdown else base_monthly_fee
 
@@ -364,6 +397,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             'student_name': student.get_full_name(),
             'base_fee': str(base_monthly_fee),
             'calculated_fee': str(final_fee.quantize(Decimal('0.01'))),
+            'final_fee': str(final_fee.quantize(Decimal('0.01'))),
             'sibling_count': fee_breakdown['sibling_count'] if fee_breakdown else 1,
             'attendance_count': fee_breakdown['attendance_count'] if fee_breakdown else 'N/A',
             'scheduled_class_count': fee_breakdown['scheduled_class_count'] if fee_breakdown else 0,
@@ -372,6 +406,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             'fee_mode': fee_breakdown['fee_mode'] if fee_breakdown else 'FULL_MONTH',
             'per_day_fee_rate': str(fee_breakdown['per_day_fee_rate']) if fee_breakdown else '350.00',
             'attendance_adjusted_fee': str(fee_breakdown['attendance_adjusted_fee']) if fee_breakdown else str(base_monthly_fee),
+            'attendance_discount_amount': str(fee_breakdown['attendance_discount_amount']) if fee_breakdown else '0.00',
             'sibling_discount_rate': str(fee_breakdown['sibling_discount_rate']) if fee_breakdown else '0.00',
             'sibling_discount_label': '25% on each additional child after the first' if fee_breakdown and fee_breakdown['sibling_position'] >= 2 else 'No sibling discount',
             'sibling_discount_amount': str(fee_breakdown['sibling_discount_amount']) if fee_breakdown else '0.00',
@@ -409,11 +444,15 @@ class PaymentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def dues(self, request):
         """[R18] Track pending/overdue payments."""
-        now = timezone.now()
+        month, year = parse_month_year(
+            request.query_params.get('month'),
+            request.query_params.get('year'),
+        )
+        reference_date = date(year, month, 1)
         paid_students = Payment.objects.filter(
             payment_type='MONTHLY',
-            payment_date__month=now.month,
-            payment_date__year=now.year
+            payment_date__month=month,
+            payment_date__year=year
         ).values_list('student_id', flat=True)
 
         unpaid_students = Student.objects.filter(status='ACTIVE').exclude(id__in=paid_students)
@@ -433,7 +472,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 parent_phone = s.parent_user.phone
             
             # [R18] Also compute how many of the last 3 months are unpaid.
-            y3, m3 = now.year, now.month
+            y3, m3 = reference_date.year, reference_date.month
             y2, m2 = _prev_month(y3, m3)
             y1, m1 = _prev_month(y2, m2)
             unpaid_months = 0
@@ -452,6 +491,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 'name': f"{s.first_name} {s.last_name}",
                 'parent': parent_name,
                 'parent_phone': parent_phone,
+                'month': month,
+                'year': year,
                 'unpaid_months': unpaid_months,
                 'is_overdue': unpaid_months >= 3,
             })

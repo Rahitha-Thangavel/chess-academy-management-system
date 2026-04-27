@@ -1,3 +1,7 @@
+"""Backend module: backend/apps/batches/management/commands/seed_demo_assignments.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from itertools import cycle
 from random import Random
 

@@ -1,3 +1,7 @@
+"""Batches app views.
+
+API views/endpoints for the batches app."""
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
@@ -8,7 +12,7 @@ from .models import Batch, BatchEnrollment, CoachAvailability, RescheduleRequest
 from .serializers import (
     BatchSerializer, BatchEnrollmentSerializer, 
     CoachAvailabilitySerializer, RescheduleRequestSerializer,
-    CoachBatchApplicationSerializer
+    CoachBatchApplicationSerializer, get_coach_batch_conflicts
 )
 
 class BatchViewSet(viewsets.ModelViewSet):
@@ -40,7 +44,7 @@ class BatchViewSet(viewsets.ModelViewSet):
                     notification_type='COACH_ALERT',
                     title='New Batch Available',
                     message=f'A new batch "{batch.batch_name}" has been created. Click to apply.',
-                    target_url='/coach/batches'
+                    target_url='/coach/batch-applications'
                 )
 
     def perform_update(self, serializer):
@@ -125,19 +129,29 @@ class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Auto-set coach to current user if not provided (and if user is coach)
         if self.request.user.role == 'COACH':
+            batch = serializer.validated_data.get('batch')
+            if batch and batch.coach_user and batch.coach_user_id != self.request.user.id:
+                raise PermissionDenied('This batch already has a coach assigned.')
             app = serializer.save(coach=self.request.user)
             # Notify admins
             from apps.notifications.utils import create_notification
             from apps.users.models import User
-            admins = User.objects.filter(role='ADMIN')
-            for admin in admins:
+            reviewers = User.objects.filter(role__in=['ADMIN', 'CLERK'])
+            for reviewer in reviewers:
                 create_notification(
-                    user=admin,
+                    user=reviewer,
                     notification_type='ADMIN_ALERT',
                     title='New Coach Application',
                     message=f'Coach {app.coach.get_full_name()} has applied for batch {app.batch.batch_name}.',
-                    target_url='/admin/batches'
+                    target_url='/admin/schedule' if reviewer.role == 'ADMIN' else '/clerk/batches'
                 )
+            create_notification(
+                user=app.coach,
+                notification_type='COACH_ALERT',
+                title='Application Submitted',
+                message=f'Your application for batch {app.batch.batch_name} has been submitted for review.',
+                target_url='/coach/batch-applications'
+            )
         else:
             serializer.save()
 
@@ -148,6 +162,12 @@ class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
             
         app = self.get_object()
+        conflicts = get_coach_batch_conflicts(app.coach, app.batch, exclude_application_id=app.id)
+        if conflicts:
+            return Response(
+                {'error': 'Coach has a conflicting class/application.', 'conflicts': conflicts},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         app.status = 'APPROVED'
         app.admin_notes = request.data.get('admin_notes', '')
         app.decision_date = datetime.date.today()
@@ -155,6 +175,8 @@ class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
         
         # Assign coach to batch
         batch = app.batch
+        if batch.coach_user and batch.coach_user_id != app.coach_id:
+            return Response({'error': 'This batch has already been assigned to another coach.'}, status=status.HTTP_400_BAD_REQUEST)
         batch.coach_user = app.coach
         batch.save()
         
@@ -166,7 +188,7 @@ class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
             notification_type='COACH_ALERT',
             title='Application Approved',
             message=f'Your application for batch {batch.batch_name} has been approved.',
-            target_url='/coach/batches'
+            target_url='/coach/classes'
         )
         
         # Cleanup "New Batch Available" notifications for this batch if we want to be thorough,
@@ -196,7 +218,7 @@ class CoachBatchApplicationViewSet(viewsets.ModelViewSet):
             notification_type='COACH_ALERT',
             title='Application Rejected',
             message=f'Your application for batch {app.batch.batch_name} has been rejected.',
-            target_url='/coach/batches'
+            target_url='/coach/batch-applications'
         )
         
         return Response({'status': 'rejected'})

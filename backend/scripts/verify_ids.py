@@ -1,4 +1,8 @@
 
+"""Backend module: backend/scripts/verify_ids.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import django
 import sys

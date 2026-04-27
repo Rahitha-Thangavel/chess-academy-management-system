@@ -1,3 +1,9 @@
+/**
+ * Page component: Coachmanagement.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React from 'react';
 import axios from '../../api/axiosInstance';
 import { useAppUI } from '../../contexts/AppUIContext';

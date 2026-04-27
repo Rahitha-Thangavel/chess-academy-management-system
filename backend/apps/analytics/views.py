@@ -1,13 +1,18 @@
+"""Analytics app views.
+
+API views/endpoints for the analytics app."""
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Avg
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, date
 from apps.students.models import Student
 from apps.attendance.models import Attendance
 from apps.attendance.utils import academy_now, get_batch_attendance_window
 from apps.payments.models import Payment, Salary
+from apps.payments.views import build_payment_period, parse_month_year
 from apps.tournaments.models import Tournament, TournamentRegistration
 from .permissions import IsAnalyticsUser
 import django.db.models as db_models
@@ -23,41 +28,75 @@ class ReportsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def student_attendance(self, request):
         """[R29] Report on student attendance percentage."""
+        month, year = parse_month_year(
+            request.query_params.get('month'),
+            request.query_params.get('year'),
+        )
         data = Student.objects.annotate(
-            total_classes=Count('attendance_records'),
+            total_classes=Count(
+                'attendance_records',
+                filter=db_models.Q(
+                    attendance_records__attendance_date__month=month,
+                    attendance_records__attendance_date__year=year,
+                ),
+            ),
             present_classes=Count(
                 'attendance_records',
-                filter=db_models.Q(attendance_records__status='PRESENT'),
+                filter=db_models.Q(
+                    attendance_records__status='PRESENT',
+                    attendance_records__attendance_date__month=month,
+                    attendance_records__attendance_date__year=year,
+                ),
             ),
-        ).values('id', 'first_name', 'last_name', 'total_classes', 'present_classes')
+        ).filter(total_classes__gt=0).values('id', 'first_name', 'last_name', 'total_classes', 'present_classes')
         return Response(data)
 
     @action(detail=False, methods=['get'])
     def payments_summary(self, request):
         """[R29] Report on payments and dues."""
-        today = timezone.now().date()
-        total_collected = Payment.objects.aggregate(total=Sum('amount'))['total'] or 0
-        by_type = list(Payment.objects.values('payment_type').annotate(total=Sum('amount')))
+        month, year = parse_month_year(
+            request.query_params.get('month'),
+            request.query_params.get('year'),
+        )
+        total_collected = Payment.objects.filter(
+            payment_date__year=year,
+            payment_date__month=month,
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        by_type = list(
+            Payment.objects.filter(
+                payment_date__year=year,
+                payment_date__month=month,
+            ).values('payment_type').annotate(total=Sum('amount'))
+        )
 
         paid_this_month = Payment.objects.filter(
             payment_type='MONTHLY',
-            payment_date__year=today.year,
-            payment_date__month=today.month,
+            payment_date__year=year,
+            payment_date__month=month,
         ).values_list('student_id', flat=True)
         unpaid_students = Student.objects.filter(status='ACTIVE').exclude(id__in=paid_this_month)
 
         return Response({
+            'month': month,
+            'year': year,
             'total_collected': total_collected,
             'summary_by_type': by_type,
             'pending_students': unpaid_students.count(),
-            'overdue_students': sum(1 for student in unpaid_students if self._count_unpaid_months(student, today) >= 3),
+            'overdue_students': sum(1 for student in unpaid_students if self._count_unpaid_months(student, date(year, month, 1)) >= 3),
         })
 
     @action(detail=False, methods=['get'])
     def tournament_details(self, request):
         """[R28, R29] Tournament report with participants, fees, attendance, and results."""
+        month, year = parse_month_year(
+            request.query_params.get('month'),
+            request.query_params.get('year'),
+        )
         tournament_rows = []
-        for tournament in Tournament.objects.all().order_by('-tournament_date'):
+        for tournament in Tournament.objects.filter(
+            tournament_date__month=month,
+            tournament_date__year=year,
+        ).order_by('-tournament_date'):
             registrations = tournament.registrations.all()
             participant_count = registrations.count()
             paid_regs = registrations.filter(payment_status='PAID')
@@ -86,7 +125,12 @@ class ReportsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def coach_salary_summary(self, request):
         """[R22, R29] Salary summaries and trends for coaches."""
-        salaries = Salary.objects.select_related('coach_user').order_by('-created_at')
+        month, year = parse_month_year(
+            request.query_params.get('month'),
+            request.query_params.get('year'),
+        )
+        payment_period = build_payment_period(month, year)
+        salaries = Salary.objects.select_related('coach_user').filter(payment_period=payment_period).order_by('-created_at')
         if request.user.role == 'COACH':
             salaries = salaries.filter(coach_user=request.user)
 
@@ -103,14 +147,20 @@ class ReportsViewSet(viewsets.ViewSet):
                 'status': salary.status,
             })
 
+        trend_queryset = Salary.objects.all()
+        if request.user.role == 'COACH':
+            trend_queryset = trend_queryset.filter(coach_user=request.user)
+
         trend = list(
-            salaries.values('payment_period').annotate(
+            trend_queryset.values('payment_period').annotate(
                 average_net=Avg('net_amount'),
                 total_net=Sum('net_amount'),
             ).order_by('payment_period')
         )
 
         return Response({
+            'month': month,
+            'year': year,
             'rows': rows,
             'trend': trend,
         })
@@ -288,10 +338,17 @@ class ReportsViewSet(viewsets.ViewSet):
                 'type': 'registration'
             } for s in recent_registrations]
 
+            schedule_batches = todays_batches
+            if request.user.role == 'COACH':
+                schedule_batches = todays_batches.filter(coach_user=request.user)
+
             schedule_data = []
-            for batch in todays_batches:
+            for batch in schedule_batches:
                 schedule_data.append({
+                    'batch_id': batch.id,
                     'time': batch.start_time.strftime('%I:%M %p'),
+                    'start_time': batch.start_time.strftime('%H:%M:%S'),
+                    'end_time': batch.end_time.strftime('%H:%M:%S'),
                     'title': batch.batch_name,
                     'coach': batch.coach_user.get_full_name() if batch.coach_user else "No Coach Assigned",
                     'students': f"{batch.enrollments.count()} students"

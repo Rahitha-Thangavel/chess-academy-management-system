@@ -1,3 +1,9 @@
+/**
+ * Page component: Payments.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from '../../api/axiosInstance';
 import { Modal, Button, Form, Table, Tab, Tabs, Badge } from 'react-bootstrap';
@@ -18,6 +24,17 @@ const expenseCategoryLabels = {
     TOURNAMENT_PRIZES: 'Tournament Gifts / Prizes',
 };
 
+const emptyFinanceSummary = {
+    student_fee_income: '0.00',
+    tournament_fee_income: '0.00',
+    total_income: '0.00',
+    coach_salary_expense: '0.00',
+    coach_salaries_paid: '0.00',
+    other_expenses_total: '0.00',
+    net_income: '0.00',
+    expense_breakdown: {},
+};
+
 const Payments = () => {
     const { confirm, notifySuccess, notifyError } = useAppUI();
     const today = new Date();
@@ -25,7 +42,8 @@ const Payments = () => {
     const [salaries, setSalaries] = useState([]);
     const [dues, setDues] = useState([]);
     const [expenses, setExpenses] = useState([]);
-    const [financeSummary, setFinanceSummary] = useState(null);
+    const [financeSummary, setFinanceSummary] = useState(emptyFinanceSummary);
+    const [financeSummaryError, setFinanceSummaryError] = useState('');
     const [showRecordModal, setShowRecordModal] = useState(false);
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [editingExpenseId, setEditingExpenseId] = useState(null);
@@ -36,6 +54,8 @@ const Payments = () => {
     const [paymentType, setPaymentType] = useState('MONTHLY');
     const [selectedFinanceMonth, setSelectedFinanceMonth] = useState(today.getMonth() + 1);
     const [selectedFinanceYear, setSelectedFinanceYear] = useState(today.getFullYear());
+    const [selectedPaymentMonth, setSelectedPaymentMonth] = useState(today.getMonth() + 1);
+    const [selectedPaymentYear, setSelectedPaymentYear] = useState(today.getFullYear());
     const [selectedSalaryPeriod, setSelectedSalaryPeriod] = useState('');
     const [expenseForm, setExpenseForm] = useState({
         title: '',
@@ -48,13 +68,13 @@ const Payments = () => {
     useEffect(() => {
         fetchPayments();
         fetchStudents();
-        fetchDues();
     }, []);
 
     useEffect(() => {
         fetchSalaries();
         fetchExpenses();
         fetchFinanceSummary();
+        fetchDues();
     }, [selectedFinanceMonth, selectedFinanceYear]);
 
     const fetchPayments = async () => {
@@ -87,16 +107,18 @@ const Payments = () => {
     const fetchFinanceSummary = async () => {
         try {
             const response = await axios.get(`/payments/finance_summary/?month=${selectedFinanceMonth}&year=${selectedFinanceYear}`);
-            setFinanceSummary(response.data);
+            setFinanceSummary({ ...emptyFinanceSummary, ...response.data });
+            setFinanceSummaryError('');
         } catch (error) {
             console.error('Error fetching finance summary:', error);
-            notifyError('Unable to load monthly finance summary.');
+            setFinanceSummary(emptyFinanceSummary);
+            setFinanceSummaryError('Monthly summary is temporarily unavailable for this selection.');
         }
     };
 
     const fetchDues = async () => {
         try {
-            const response = await axios.get('/payments/dues/');
+            const response = await axios.get(`/payments/dues/?month=${selectedFinanceMonth}&year=${selectedFinanceYear}`);
             setDues(response.data);
         } catch (error) {
             console.error('Error fetching dues:', error);
@@ -112,7 +134,7 @@ const Payments = () => {
         }
     };
 
-    const handleStudentChange = async (studentId) => {
+    const handleStudentChange = async (studentId, month = selectedPaymentMonth, year = selectedPaymentYear) => {
         setSelectedStudent(studentId);
         if (!studentId) {
             setCalculatedFee(null);
@@ -120,7 +142,7 @@ const Payments = () => {
         }
         try {
             const response = await axios.get(
-                `/payments/calculate_fee/?student_id=${studentId}&month=${selectedFinanceMonth}&year=${selectedFinanceYear}`
+                `/payments/calculate_fee/?student_id=${studentId}&month=${month}&year=${year}`
             );
             setCalculatedFee(response.data);
         } catch (error) {
@@ -134,7 +156,7 @@ const Payments = () => {
             await axios.post('/payments/', {
                 student: selectedStudent,
                 amount: calculatedFee.calculated_fee,
-                payment_date: `${selectedFinanceYear}-${String(selectedFinanceMonth).padStart(2, '0')}-01`,
+                payment_date: `${selectedPaymentYear}-${String(selectedPaymentMonth).padStart(2, '0')}-01`,
                 payment_method: paymentMethod,
                 payment_type: paymentType,
             });
@@ -145,7 +167,7 @@ const Payments = () => {
             fetchFinanceSummary();
         } catch (error) {
             console.error('Error recording payment:', error);
-            notifyError('Failed to record payment.');
+            notifyError(error.response?.data?.detail || error.response?.data?.error || 'Failed to record payment.');
         }
     };
 
@@ -213,6 +235,15 @@ const Payments = () => {
     };
 
     const paymentPeriodLabel = `${monthNames[selectedFinanceMonth - 1]} ${selectedFinanceYear}`;
+    const selectedPaymentPeriodLabel = `${monthNames[selectedPaymentMonth - 1]} ${selectedPaymentYear}`;
+    const monthlyPaymentAlreadyExists = paymentType === 'MONTHLY' && Boolean(
+        selectedStudent && payments.some((payment) =>
+            String(payment.student) === String(selectedStudent)
+            && payment.payment_type === 'MONTHLY'
+            && new Date(payment.payment_date).getMonth() + 1 === selectedPaymentMonth
+            && new Date(payment.payment_date).getFullYear() === selectedPaymentYear
+        )
+    );
 
     const visibleSalaries = useMemo(
         () => salaries.filter((salary) => salary.payment_period === selectedSalaryPeriod),
@@ -279,13 +310,25 @@ const Payments = () => {
                     <Form.Control
                         type="number"
                         value={selectedFinanceYear}
-                        onChange={(e) => setSelectedFinanceYear(Number(e.target.value))}
+                        onChange={(e) => {
+                            const parsedYear = Number(e.target.value);
+                            if (Number.isFinite(parsedYear)) {
+                                setSelectedFinanceYear(parsedYear);
+                            }
+                        }}
                         style={{ width: '110px' }}
                     />
                     <button
                         className="btn text-white fw-bold px-4 py-2"
                         style={{ backgroundColor: '#6c9343' }}
-                        onClick={() => setShowRecordModal(true)}
+                        onClick={() => {
+                            setSelectedPaymentMonth(selectedFinanceMonth);
+                            setSelectedPaymentYear(selectedFinanceYear);
+                            setSelectedStudent('');
+                            setCalculatedFee(null);
+                            setPaymentType('MONTHLY');
+                            setShowRecordModal(true);
+                        }}
                     >
                         <i className="bi bi-plus-lg me-2"></i> Record Payment
                     </button>
@@ -308,6 +351,7 @@ const Payments = () => {
             <div className="alert alert-light border d-flex flex-column flex-lg-row justify-content-between gap-2 mb-4">
                 <div><strong>Selected month:</strong> {paymentPeriodLabel}</div>
                 <div className="text-muted">Net income = total income - coach salary expense - other expenses</div>
+                {financeSummaryError && <div className="text-danger small">{financeSummaryError}</div>}
             </div>
 
             <div className="row g-4 mb-4">
@@ -387,7 +431,7 @@ const Payments = () => {
 
                     <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                         <div className="p-3 text-white" style={{ backgroundColor: '#6c9343' }}>
-                            <h6 className="fw-bold m-0">Incomplete Monthly Payments</h6>
+                            <h6 className="fw-bold m-0">Incomplete Monthly Payments for {paymentPeriodLabel}</h6>
                         </div>
                         <div className="table-responsive p-3">
                             <table className="table table-hover align-middle mb-0">
@@ -401,7 +445,7 @@ const Payments = () => {
                                 </thead>
                                 <tbody>
                                     {dues.length === 0 ? (
-                                        <tr><td colSpan="4" className="text-center py-4">All students have paid for this month.</td></tr>
+                                        <tr><td colSpan="4" className="text-center py-4">All students have paid for {paymentPeriodLabel}.</td></tr>
                                     ) : dues.map((row) => (
                                         <tr key={row.id}>
                                             <td className="ps-4 fw-bold">{row.name}</td>
@@ -411,8 +455,10 @@ const Payments = () => {
                                                 <button
                                                     className="btn btn-sm btn-outline-success"
                                                     onClick={() => {
+                                                        setSelectedPaymentMonth(selectedFinanceMonth);
+                                                        setSelectedPaymentYear(selectedFinanceYear);
                                                         setSelectedStudent(row.id);
-                                                        handleStudentChange(row.id);
+                                                        handleStudentChange(row.id, selectedFinanceMonth, selectedFinanceYear);
                                                         setShowRecordModal(true);
                                                     }}
                                                 >
@@ -569,14 +615,79 @@ const Payments = () => {
                             </Form.Select>
                         </Form.Group>
 
+                        <div className="row g-3 mb-3">
+                            <div className="col-md-6">
+                                <Form.Label>Payment Month</Form.Label>
+                                <Form.Select
+                                    value={selectedPaymentMonth}
+                                    onChange={(e) => {
+                                        const nextMonth = Number(e.target.value);
+                                        setSelectedPaymentMonth(nextMonth);
+                                        if (selectedStudent) {
+                                            handleStudentChange(selectedStudent, nextMonth, selectedPaymentYear);
+                                        }
+                                    }}
+                                >
+                                    {monthNames.map((month, index) => (
+                                        <option key={month} value={index + 1}>{month}</option>
+                                    ))}
+                                </Form.Select>
+                            </div>
+                            <div className="col-md-6">
+                                <Form.Label>Payment Year</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    value={selectedPaymentYear}
+                                    onChange={(e) => {
+                                        const nextYear = Number(e.target.value);
+                                        setSelectedPaymentYear(nextYear);
+                                        if (selectedStudent && Number.isFinite(nextYear)) {
+                                            handleStudentChange(selectedStudent, selectedPaymentMonth, nextYear);
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="alert alert-light border py-2 small mb-3">
+                            <strong>Recording for:</strong> {selectedPaymentPeriodLabel}
+                        </div>
+
                         {calculatedFee && (
-                            <div className="alert alert-info py-2 small mb-3">
-                                <strong>Fee Calculation for {paymentPeriodLabel}:</strong><br />
-                                Base: LKR {calculatedFee.base_fee}<br />
-                                Calculated: LKR {calculatedFee.calculated_fee}<br />
-                                <span className="text-muted">
-                                    (Includes {calculatedFee.sibling_count >= 2 ? 'sibling discount' : 'no sibling discount'} and {calculatedFee.attendance_count <= 4 ? 'partial attendance discount' : 'full attendance fee'})
-                                </span>
+                            <div className="alert alert-info py-3 small mb-3">
+                                <strong className="d-block mb-2">Fee Calculation for {selectedPaymentPeriodLabel}</strong>
+                                <div className="d-flex justify-content-between mb-1">
+                                    <span>Base Fee</span>
+                                    <span className="fw-semibold">LKR {calculatedFee.base_fee}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-1">
+                                    <span>Attendance Adjusted Fee</span>
+                                    <span className="fw-semibold">LKR {calculatedFee.attendance_adjusted_fee}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-1">
+                                    <span>Attendance Discount</span>
+                                    <span className="fw-semibold text-danger">- LKR {calculatedFee.attendance_discount_amount}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-1">
+                                    <span>Sibling Discount</span>
+                                    <span className="fw-semibold text-danger">- LKR {calculatedFee.sibling_discount_amount}</span>
+                                </div>
+                                <hr className="my-2" />
+                                <div className="d-flex justify-content-between">
+                                    <span className="fw-bold">Final Fee</span>
+                                    <span className="fw-bold text-success">LKR {calculatedFee.final_fee || calculatedFee.calculated_fee}</span>
+                                </div>
+                                <div className="text-muted mt-2">
+                                    {calculatedFee.month_closed
+                                        ? `Closed month: ${calculatedFee.attendance_count} attendance marks recorded out of ${calculatedFee.scheduled_class_count} scheduled classes.`
+                                        : 'Current month is still in progress, so the final month-end adjustment has not been locked yet.'}
+                                </div>
+                            </div>
+                        )}
+
+                        {monthlyPaymentAlreadyExists && (
+                            <div className="alert alert-warning py-2 small mb-3">
+                                Monthly fee for {selectedPaymentPeriodLabel} has already been recorded for this student.
                             </div>
                         )}
 
@@ -598,7 +709,12 @@ const Payments = () => {
 
                         <div className="d-flex justify-content-end gap-2 mt-4">
                             <Button variant="light" onClick={() => setShowRecordModal(false)}>Cancel</Button>
-                            <Button type="submit" disabled={!calculatedFee} className="text-white" style={{ backgroundColor: '#6c9343', border: 'none' }}>
+                            <Button
+                                type="submit"
+                                disabled={!calculatedFee || monthlyPaymentAlreadyExists}
+                                className="text-white"
+                                style={{ backgroundColor: '#6c9343', border: 'none' }}
+                            >
                                 Record Payment
                             </Button>
                         </div>

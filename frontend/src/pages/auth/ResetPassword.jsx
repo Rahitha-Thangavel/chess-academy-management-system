@@ -1,3 +1,9 @@
+/**
+ * Page component: Resetpassword.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';

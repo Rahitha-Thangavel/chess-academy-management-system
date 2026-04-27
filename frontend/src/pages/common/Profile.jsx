@@ -1,3 +1,9 @@
+/**
+ * Page component: Profile.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';

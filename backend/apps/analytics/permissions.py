@@ -1,3 +1,7 @@
+"""Backend module: backend/apps/analytics/permissions.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from rest_framework import permissions
 
 class IsAnalyticsUser(permissions.BasePermission):

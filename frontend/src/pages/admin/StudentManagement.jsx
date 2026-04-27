@@ -1,3 +1,9 @@
+/**
+ * Page component: Studentmanagement.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { Modal, Button } from 'react-bootstrap';
@@ -48,7 +54,7 @@ const StudentManagement = ({
 
     // Add Student Form
     const [newStudent, setNewStudent] = useState({
-        first_name: '', last_name: '', date_of_birth: '', grade_level: '', school: '', parent_username: ''
+        nic: '', first_name: '', last_name: '', date_of_birth: '', grade_level: '', school: '', parent_username: ''
     });
 
     useEffect(() => {
@@ -140,11 +146,15 @@ const StudentManagement = ({
             await axios.post('/students/', newStudent);
             notifySuccess(addSuccessMessage);
             setShowAddModal(false);
-            setNewStudent({ first_name: '', last_name: '', date_of_birth: '', grade_level: '', school: '', parent_username: '' });
+            setNewStudent({ nic: '', first_name: '', last_name: '', date_of_birth: '', grade_level: '', school: '', parent_username: '' });
             fetchStudents();
         } catch (error) {
             console.error('Error adding student:', error);
-            notifyError(error.response?.data?.parent_username?.[0] || 'Failed to add student.');
+            notifyError(
+                error.response?.data?.nic?.[0] ||
+                error.response?.data?.parent_username?.[0] ||
+                'Failed to add student.'
+            );
         }
     };
 
@@ -252,7 +262,7 @@ const StudentManagement = ({
                                 <input
                                     type="text"
                                     className="form-control border-end-0 bg-light"
-                                    placeholder="Search by name, ID, school..."
+                                    placeholder="Search by name, ID, NIC, school..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -420,6 +430,10 @@ const StudentManagement = ({
                                 <span className="fw-bold text-dark">{selectedStudent.first_name} {selectedStudent.last_name}</span>
                             </div>
                             <div className="d-flex justify-content-between border-bottom pb-2">
+                                <span className="text-secondary fw-bold">NIC</span>
+                                <span className="text-dark">{selectedStudent.nic || 'N/A'}</span>
+                            </div>
+                            <div className="d-flex justify-content-between border-bottom pb-2">
                                 <span className="text-secondary fw-bold">Date of Birth</span>
                                 <span className="text-dark">{selectedStudent.date_of_birth}</span>
                             </div>
@@ -525,6 +539,17 @@ const StudentManagement = ({
 
                         <h6 className="text-secondary fw-bold mb-3">Student Information</h6>
                         <div className="row g-3">
+                            <div className="col-md-6">
+                                <label className="form-label">NIC <span className="text-danger">*</span></label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    value={newStudent.nic}
+                                    onChange={(e) => setNewStudent({ ...newStudent, nic: e.target.value })}
+                                    placeholder="Enter student NIC"
+                                    required
+                                />
+                            </div>
                             <div className="col-md-6">
                                 <label className="form-label">First Name</label>
                                 <input

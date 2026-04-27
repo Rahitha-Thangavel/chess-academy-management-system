@@ -1,3 +1,7 @@
+"""Tournaments app serializers.
+
+Django REST Framework serializers for the tournaments app."""
+
 from rest_framework import serializers
 from django.utils import timezone
 from .models import Tournament, TournamentRegistration, TournamentMatch

@@ -1,3 +1,9 @@
+/**
+ * API/service module: Axiosinstance.
+ * 
+ * Client-side helpers for communicating with the backend.
+ */
+
 import axios from 'axios';
 import { authStorage } from '../utils/authStorage';
 

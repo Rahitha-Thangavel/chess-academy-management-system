@@ -1,3 +1,7 @@
+"""Backend module: backend/scripts/check_settings.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import sys
 import django

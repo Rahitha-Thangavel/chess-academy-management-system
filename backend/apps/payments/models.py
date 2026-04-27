@@ -1,3 +1,7 @@
+"""Payments app models.
+
+Defines Django ORM models used by the payments app."""
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings

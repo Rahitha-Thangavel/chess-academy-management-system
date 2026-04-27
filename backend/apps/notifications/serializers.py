@@ -1,3 +1,7 @@
+"""Notifications app serializers.
+
+Django REST Framework serializers for the notifications app."""
+
 from rest_framework import serializers
 from .models import Notification
 

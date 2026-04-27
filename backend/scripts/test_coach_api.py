@@ -1,3 +1,7 @@
+"""Backend module: backend/scripts/test_coach_api.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import requests
 import json
 

@@ -1,3 +1,9 @@
+/**
+ * Page component: Students.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React from 'react';
 import StudentManagement from '../admin/StudentManagement';
 

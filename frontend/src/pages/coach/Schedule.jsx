@@ -1,3 +1,9 @@
+/**
+ * Page component: Schedule.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from '../../api/axiosInstance';
 import { useAppUI } from '../../contexts/AppUIContext';

@@ -1,3 +1,9 @@
+/**
+ * Page component: Batchapplications.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { Table, Button, Badge, Modal, Form, Tab, Tabs } from 'react-bootstrap';
@@ -64,7 +70,12 @@ const BatchApplications = () => {
             setApplyMessage('');
             fetchApplications();
         } catch (err) {
-            toast.error('Failed to submit application');
+            const conflicts = err.response?.data?.conflicts;
+            if (Array.isArray(conflicts) && conflicts.length > 0) {
+                toast.error(conflicts[0]);
+            } else {
+                toast.error(err.response?.data?.batch?.[0] || 'Failed to submit application');
+            }
             console.error(err);
         }
     };
@@ -140,11 +151,21 @@ const BatchApplications = () => {
                                         <td>{app.batch_schedule}</td>
                                         <td>{new Date(app.application_date).toLocaleDateString()}</td>
                                         <td>
+                                            <div className="d-flex flex-column gap-1">
                                             <Badge bg={app.status === 'APPROVED' ? 'success' : app.status === 'REJECTED' ? 'danger' : 'warning'}>
                                                 {app.status}
                                             </Badge>
+                                            {app.has_conflict && (
+                                                <small className="text-danger fw-semibold">Conflict detected</small>
+                                            )}
+                                            </div>
                                         </td>
-                                        <td className="small text-muted">{app.admin_notes}</td>
+                                        <td className="small text-muted">
+                                            {app.conflict_warning ? (
+                                                <span className="text-danger d-block mb-1">{app.conflict_warning}</span>
+                                            ) : null}
+                                            {app.admin_notes}
+                                        </td>
                                     </tr>
                                 ))}
                                 {applications.length === 0 && (

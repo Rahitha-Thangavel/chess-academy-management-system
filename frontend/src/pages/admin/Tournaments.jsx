@@ -1,3 +1,9 @@
+/**
+ * Page component: Tournaments.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axiosInstance';
 import { Modal, Button, Form, Table, Tabs, Tab } from 'react-bootstrap';

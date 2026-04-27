@@ -1,3 +1,9 @@
+/**
+ * Frontend module: frontend/src/contexts/NotificationContext.jsx.
+ * 
+ * Part of the chess academy management system UI.
+ */
+
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import axios from '../api/axiosInstance';
 import { useAuth } from './AuthContext';

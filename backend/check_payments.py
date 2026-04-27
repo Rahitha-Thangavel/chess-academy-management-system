@@ -1,3 +1,7 @@
+"""Backend module: backend/check_payments.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import django
 from django.utils import timezone

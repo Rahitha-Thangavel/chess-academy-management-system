@@ -1,3 +1,7 @@
+"""Students app views.
+
+API views/endpoints for the students app."""
+
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,7 +21,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         'grade_level': ['exact'],
         'parent_user': ['exact'],
     }
-    search_fields = ['first_name', 'last_name', 'school', 'parent_user__username', 'parent_user__first_name', 'id']
+    search_fields = ['first_name', 'last_name', 'school', 'parent_user__username', 'parent_user__first_name', 'id', 'nic']
 
     def get_queryset(self):
         user = self.request.user

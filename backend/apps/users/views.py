@@ -1,3 +1,7 @@
+"""Users app views.
+
+API views/endpoints for the users app."""
+
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -195,25 +199,20 @@ class LoginView(APIView):
             email = serializer.validated_data['email']
             password = serializer.validated_data['password']
             
-            # Authenticate user with Email or Username
+            # Authenticate user with email or username.
+            # The custom user model uses email as USERNAME_FIELD, so Django's
+            # default authenticate() does not reliably support username-based
+            # logins here. We first resolve the user and then verify the hash
+            # directly so both identifiers work.
             from django.db.models import Q
             try:
-                # Check if input is email or username
+                login_value = email.strip()
                 user_obj = User.objects.filter(
-                    Q(email=email) | Q(username=email)
+                    Q(email__iexact=login_value) | Q(username__iexact=login_value)
                 ).first()
                 
-                if user_obj:
-                    # If user found, verify password manually or use authenticate with actual username
-                    # create a custom authentication backend or just use check_password if simplistic
-                    # Better: authenticate using the found user's credentials
-                    # Standard authenticate() expects 'username' and 'password'
-                    # We can pass the found user's email or username as 'username' arg if using ModelBackend
-                    
-                    user = authenticate(request, username=user_obj.email, password=password)
-                    if not user:
-                         # Try with actual username if email/username differ in auth backend logic
-                         user = authenticate(request, username=user_obj.username, password=password)
+                if user_obj and user_obj.check_password(password):
+                    user = user_obj
                 else:
                     user = None
 

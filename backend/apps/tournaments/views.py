@@ -1,3 +1,7 @@
+"""Tournaments app views.
+
+API views/endpoints for the tournaments app."""
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action

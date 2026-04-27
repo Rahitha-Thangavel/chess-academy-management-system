@@ -1,3 +1,9 @@
+/**
+ * Page component: Dashboard.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React from 'react';
 import AdminDashboard from '../admin/Dashboard';
 

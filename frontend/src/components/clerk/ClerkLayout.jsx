@@ -1,3 +1,9 @@
+/**
+ * UI component: Clerklayout.
+ * 
+ * Reusable React UI component used across the app.
+ */
+
 
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
@@ -12,7 +18,7 @@ const ClerkLayout = ({ children }) => {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
-    const [stats, setStats] = useState({ pending_students: 0, pending_reschedules: 0 });
+    const [stats, setStats] = useState({ pending_reschedules: 0 });
     const profileMenuRef = useRef(null);
 
     useEffect(() => {
@@ -23,18 +29,12 @@ const ClerkLayout = ({ children }) => {
 
     const fetchStats = async () => {
         try {
-            const [pendingStudentsRes, reschedulesRes] = await Promise.all([
-                axios.get('/students/pending/'),
-                axios.get('/reschedule-requests/'),
-            ]);
-
-            const pendingStudents = Array.isArray(pendingStudentsRes.data) ? pendingStudentsRes.data.length : 0;
+            const reschedulesRes = await axios.get('/reschedule-requests/');
             const pendingReschedules = Array.isArray(reschedulesRes.data)
                 ? reschedulesRes.data.filter((request) => request.status === 'PENDING').length
                 : 0;
 
             setStats({
-                pending_students: pendingStudents,
                 pending_reschedules: pendingReschedules,
             });
         } catch (error) {
@@ -89,15 +89,8 @@ const ClerkLayout = ({ children }) => {
                             }
                             style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
                         >
-                            <div className="d-flex align-items-center w-100 justify-content-between">
-                                <div className="d-flex align-items-center gap-3">
-                                    <i className="bi bi-people-fill"></i>
-                                    <span>Student Management</span>
-                                </div>
-                                {stats.pending_students > 0 && (
-                                    <span className="badge bg-primary-subtle text-primary rounded-pill" style={{ fontSize: '0.7rem' }}>{stats.pending_students}</span>
-                                )}
-                            </div>
+                            <i className="bi bi-people-fill"></i>
+                            Student Management
                         </NavLink>
                     </li>
                     <li className="nav-item">

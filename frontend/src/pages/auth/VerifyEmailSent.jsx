@@ -1,3 +1,9 @@
+/**
+ * Page component: Verifyemailsent.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';

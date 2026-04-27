@@ -1,3 +1,7 @@
+"""Backend module: backend/scripts/generate_sample_data.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import sys
 import random

@@ -1,3 +1,7 @@
+"""Root URL configuration.
+
+Routes incoming requests to app URLConfs."""
+
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import permissions
@@ -25,6 +29,7 @@ urlpatterns = [
     path('api/', include('apps.payments.urls')),
     path('api/analytics/', include('apps.analytics.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
+    path('api/', include('apps.announcements.urls')),
     path('api/', include('apps.tournaments.urls')),
     
     # API Documentation

@@ -1,3 +1,7 @@
+"""Attendance app serializers.
+
+Django REST Framework serializers for the attendance app."""
+
 from rest_framework import serializers
 from .models import Attendance, CoachAttendance
 from decimal import Decimal

@@ -1,3 +1,7 @@
+"""Students app serializers.
+
+Django REST Framework serializers for the students app."""
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Student
@@ -5,6 +9,7 @@ from .models import Student
 User = get_user_model()
 
 class StudentSerializer(serializers.ModelSerializer):
+    nic = serializers.CharField(required=True, allow_blank=False)
     parent_username = serializers.CharField(write_only=True, required=False)
     parent_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
@@ -15,6 +20,7 @@ class StudentSerializer(serializers.ModelSerializer):
         model = Student
         fields = [
             'id', 
+            'nic',
             'first_name', 
             'last_name', 
             'date_of_birth', 
@@ -31,6 +37,19 @@ class StudentSerializer(serializers.ModelSerializer):
             'batch_names'
         ]
         read_only_fields = ['id', 'enrollment_date', 'status', 'parent_user', 'created_by']
+
+    def validate_nic(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("NIC is required.")
+        if not value.isdigit() or len(value) != 12:
+            raise serializers.ValidationError("NIC must contain exactly 12 digits.")
+        existing = Student.objects.filter(nic=value)
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError("A student with this NIC already exists.")
+        return value
 
     def get_batch_names(self, obj):
         return [enrollment.batch.batch_name for enrollment in obj.enrollments.all()]
@@ -68,6 +87,10 @@ class StudentSerializer(serializers.ModelSerializer):
                     validated_data['parent_user'] = parent
                 except User.DoesNotExist:
                     raise serializers.ValidationError({"parent_username": "Parent with this username does not exist."})
+
+                nic = validated_data.get('nic')
+                if not nic:
+                    raise serializers.ValidationError({"nic": "NIC is required for student registration."})
                 
                 # Admin creations are auto-approved
                 if request.user.role == 'ADMIN':

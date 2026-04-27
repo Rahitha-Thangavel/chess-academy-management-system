@@ -1,3 +1,9 @@
+/**
+ * Utility module: Notificationroutes.
+ * 
+ * Small reusable helpers shared by multiple features.
+ */
+
 const LEGACY_ROUTE_MAP = {
     '/parent/students': '/parent/children',
     '/admin/batches': '/admin/schedule',

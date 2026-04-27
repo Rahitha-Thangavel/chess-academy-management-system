@@ -1,3 +1,7 @@
+"""Payments app serializers.
+
+Django REST Framework serializers for the payments app."""
+
 from rest_framework import serializers
 from .models import Payment, Salary, Expense
 from apps.students.models import Student

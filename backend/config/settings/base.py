@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'apps.tournaments',
     'apps.notifications',
     'apps.analytics',
+    'apps.announcements',
 ]
 
 MIDDLEWARE = [

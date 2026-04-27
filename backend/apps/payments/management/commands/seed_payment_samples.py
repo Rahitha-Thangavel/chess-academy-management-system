@@ -1,3 +1,7 @@
+"""Backend module: backend/apps/payments/management/commands/seed_payment_samples.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from datetime import date, timedelta
 from decimal import Decimal
 

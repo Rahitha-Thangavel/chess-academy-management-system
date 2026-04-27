@@ -1,3 +1,9 @@
+/**
+ * Page component: Paymentcheckout.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from '../../api/axiosInstance';

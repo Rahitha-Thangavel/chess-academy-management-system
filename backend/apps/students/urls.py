@@ -1,3 +1,7 @@
+"""Students app routes.
+
+URL patterns for the students app."""
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import StudentViewSet

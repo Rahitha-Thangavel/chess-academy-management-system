@@ -1,3 +1,7 @@
+"""Backend module: backend/apps/users/services.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from django.core.mail import send_mail
 from django.conf import settings
 from django.template.loader import render_to_string

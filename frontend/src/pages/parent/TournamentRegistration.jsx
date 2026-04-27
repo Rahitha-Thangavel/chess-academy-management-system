@@ -1,3 +1,9 @@
+/**
+ * Page component: Tournamentregistration.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../../api/axiosInstance';

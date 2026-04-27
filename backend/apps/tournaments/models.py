@@ -1,3 +1,7 @@
+"""Tournaments app models.
+
+Defines Django ORM models used by the tournaments app."""
+
 from django.db import models
 from django.conf import settings
 from django.utils import timezone

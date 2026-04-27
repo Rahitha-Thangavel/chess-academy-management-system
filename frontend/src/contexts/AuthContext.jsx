@@ -1,3 +1,9 @@
+/**
+ * Frontend module: frontend/src/contexts/AuthContext.jsx.
+ * 
+ * Part of the chess academy management system UI.
+ */
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authAPI } from '../api/auth';
 import { authStorage } from '../utils/authStorage';

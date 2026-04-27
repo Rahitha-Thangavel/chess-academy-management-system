@@ -1,3 +1,9 @@
+/**
+ * Page component: Forgotpassword.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';

@@ -1,3 +1,7 @@
+"""Backend module: backend/scripts/verify_data.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 from apps.users.models import User
 from apps.students.models import Student
 

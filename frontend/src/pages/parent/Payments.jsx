@@ -1,3 +1,9 @@
+/**
+ * Page component: Payments.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axiosInstance';

@@ -1,3 +1,7 @@
+"""Attendance app views.
+
+API views/endpoints for the attendance app."""
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -6,7 +10,7 @@ from datetime import timedelta
 from django.utils.dateparse import parse_date
 from .models import Attendance, CoachAttendance
 from .serializers import AttendanceSerializer, CoachAttendanceSerializer
-from .utils import academy_now, get_batch_attendance_window
+from .utils import academy_now, get_batch_attendance_window, get_coach_clock_window
 from apps.students.models import Student
 from apps.batches.models import Batch
 from rest_framework.exceptions import PermissionDenied
@@ -224,11 +228,16 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
         if request.user.role != 'COACH':
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
+        current_dt = academy_now()
+        today = current_dt.date()
         batch_id = request.data.get('batch_id')
         if not batch_id:
             return Response({'error': 'batch_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            batch = Batch.objects.get(id=batch_id, coach_user=request.user)
+        except Batch.DoesNotExist:
+            return Response({'error': 'This batch is not assigned to you.'}, status=status.HTTP_403_FORBIDDEN)
 
-        today = timezone.now().date()
         active_record = CoachAttendance.objects.filter(
             coach=request.user,
             date=today,
@@ -245,7 +254,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
             coach=request.user,
             batch_id=batch_id,
             date=today,
-            defaults={'clock_in_time': timezone.now()}
+            defaults={'clock_in_time': current_dt}
         )
 
         if not created and record.clock_in_time and not record.clock_out_time:
@@ -261,8 +270,17 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
             )
 
         if not created and not record.clock_in_time:
-            record.clock_in_time = timezone.now()
+            window = get_coach_clock_window(batch, current_dt, target_date=today)
+            if not window['can_clock_in']:
+                return Response({'error': window['clock_in_message']}, status=status.HTTP_400_BAD_REQUEST)
+            record.clock_in_time = current_dt
             record.save()
+
+        if created:
+            window = get_coach_clock_window(batch, current_dt, target_date=today)
+            if not window['can_clock_in']:
+                record.delete()
+                return Response({'error': window['clock_in_message']}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(CoachAttendanceSerializer(record).data)
 
@@ -272,6 +290,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
         if request.user.role != 'COACH':
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
+        current_dt = academy_now()
         batch_id = request.data.get('batch_id')
         if not batch_id:
             return Response({'error': 'batch_id is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -280,13 +299,16 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
             record = CoachAttendance.objects.get(
                 coach=request.user,
                 batch_id=batch_id,
-                date=timezone.now().date()
+                date=current_dt.date()
             )
+            window = get_coach_clock_window(record.batch, current_dt, target_date=record.date)
             if not record.clock_in_time:
                 return Response({'error': 'You must start the class before ending it.'}, status=status.HTTP_400_BAD_REQUEST)
             if record.clock_out_time:
                 return Response({'error': 'This class session has already been ended.'}, status=status.HTTP_400_BAD_REQUEST)
-            record.clock_out_time = timezone.now()
+            if not window['can_clock_out']:
+                return Response({'error': window['clock_out_message']}, status=status.HTTP_400_BAD_REQUEST)
+            record.clock_out_time = current_dt
             record.save()
             return Response(CoachAttendanceSerializer(record).data)
         except CoachAttendance.DoesNotExist:

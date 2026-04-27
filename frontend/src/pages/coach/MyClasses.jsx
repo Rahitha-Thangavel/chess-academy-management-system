@@ -1,3 +1,9 @@
+/**
+ * Page component: Myclasses.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React from 'react';
 
 const MyClasses = () => {

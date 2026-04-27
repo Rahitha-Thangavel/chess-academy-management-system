@@ -1,3 +1,9 @@
+/**
+ * UI component: Notificationalert.
+ * 
+ * Reusable React UI component used across the app.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';

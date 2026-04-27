@@ -1,3 +1,9 @@
+/**
+ * Page component: Notifications.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React from 'react';
 
 const Notifications = () => {

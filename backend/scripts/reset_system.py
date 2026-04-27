@@ -1,3 +1,7 @@
+"""Backend module: backend/scripts/reset_system.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import glob
 import subprocess

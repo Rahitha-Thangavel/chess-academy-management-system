@@ -1,3 +1,9 @@
+"""Backend module: backend/config/settings/development.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
+import os
+
 from .base import *
 
 # Development-specific overrides
@@ -6,19 +12,31 @@ DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
 
 # Database - DEVELOPMENT
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'chess_academy_db',
-        'USER': 'chess_admin',
-        'PASSWORD': 'SecurePass123!',
-        'HOST': 'localhost',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+# Default to SQLite on local Windows setups so the app can run without
+# native MySQL client build tools. Set USE_SQLITE=false to use MySQL.
+USE_SQLITE = os.getenv('USE_SQLITE', 'true').lower() in ('1', 'true', 'yes')
+
+if USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('DB_NAME', 'chess_academy_db'),
+            'USER': os.getenv('DB_USER', 'chess_admin'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'SecurePass123!'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '3306'),
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            }
+        }
+    }
 
 # CORS for React
 CORS_ALLOWED_ORIGINS = [

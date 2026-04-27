@@ -1,3 +1,9 @@
+/**
+ * UI component: Adminlayout.
+ * 
+ * Reusable React UI component used across the app.
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -174,9 +180,21 @@ const AdminLayout = ({ children }) => {
                                 `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
                             }
                             style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
-                        >
+                            >
                             <i className="bi bi-bar-chart-fill"></i>
                             Reports
+                        </NavLink>
+                    </li>
+                    <li className="nav-item">
+                        <NavLink
+                            to="/admin/announcements"
+                            className={({ isActive }) =>
+                                `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 ${isActive ? 'bg-success text-white' : 'text-secondary hover-bg-light'}`
+                            }
+                            style={({ isActive }) => ({ backgroundColor: isActive ? '#6c9343' : '' })}
+                        >
+                            <i className="bi bi-megaphone-fill"></i>
+                            Announcements
                         </NavLink>
                     </li>
                 </ul>

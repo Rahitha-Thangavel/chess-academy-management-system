@@ -1,3 +1,9 @@
+/**
+ * Page component: Registrationsuccess.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 

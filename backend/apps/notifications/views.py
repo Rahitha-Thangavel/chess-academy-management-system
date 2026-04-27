@@ -1,3 +1,7 @@
+"""Notifications app views.
+
+API views/endpoints for the notifications app."""
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response

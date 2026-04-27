@@ -1,5 +1,48 @@
+"""Batches app serializers.
+
+Django REST Framework serializers for the batches app."""
+
 from rest_framework import serializers
 from .models import Batch, BatchEnrollment, CoachAvailability, RescheduleRequest, CoachBatchApplication
+
+
+def batches_overlap(batch_a, batch_b):
+    if batch_a.batch_type == Batch.BatchType.ONE_TIME or batch_b.batch_type == Batch.BatchType.ONE_TIME:
+        if not batch_a.exact_date or not batch_b.exact_date or batch_a.exact_date != batch_b.exact_date:
+            return False
+    else:
+        if batch_a.schedule_day != batch_b.schedule_day:
+            return False
+
+    return batch_a.start_time < batch_b.end_time and batch_b.start_time < batch_a.end_time
+
+
+def get_coach_batch_conflicts(coach, batch, exclude_application_id=None):
+    conflicts = []
+
+    assigned_batches = Batch.objects.filter(coach_user=coach).exclude(id=batch.id)
+    for assigned_batch in assigned_batches:
+        if batches_overlap(batch, assigned_batch):
+            conflicts.append(f'Assigned batch conflict: {assigned_batch.batch_name} ({assigned_batch.schedule_day or assigned_batch.exact_date} {assigned_batch.start_time}-{assigned_batch.end_time})')
+
+    pending_or_approved_apps = CoachBatchApplication.objects.filter(
+        coach=coach,
+        status__in=[
+            CoachBatchApplication.ApplicationStatus.PENDING,
+            CoachBatchApplication.ApplicationStatus.APPROVED,
+        ],
+    ).select_related('batch')
+
+    if exclude_application_id:
+        pending_or_approved_apps = pending_or_approved_apps.exclude(id=exclude_application_id)
+
+    for app in pending_or_approved_apps:
+        if app.batch_id == batch.id:
+            continue
+        if batches_overlap(batch, app.batch):
+            conflicts.append(f'Application conflict: {app.batch.batch_name} ({app.batch.schedule_day or app.batch.exact_date} {app.batch.start_time}-{app.batch.end_time})')
+
+    return conflicts
 
 class BatchSerializer(serializers.ModelSerializer):
     coach_name = serializers.SerializerMethodField()
@@ -57,7 +100,7 @@ class BatchSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate that total capacity of overlapping batches doesn't exceed 100."""
         from django.conf import settings
-        from django.db.models import Sum, Q
+        from django.db.models import Q
 
         schedule_day = data.get('schedule_day')
         start_time = data.get('start_time')
@@ -67,12 +110,15 @@ class BatchSerializer(serializers.ModelSerializer):
         
         # If we are updating, use current values if not provided
         if self.instance:
-            schedule_day = schedule_day or self.instance.schedule_day
-            start_time = start_time or self.instance.start_time
-            end_time = end_time or self.instance.end_time
+            if 'schedule_day' not in data:
+                schedule_day = self.instance.schedule_day
+            if 'start_time' not in data:
+                start_time = self.instance.start_time
+            if 'end_time' not in data:
+                end_time = self.instance.end_time
             if 'max_students' not in data:
                 max_students = self.instance.max_students
-            if coach_user is None:
+            if 'coach_user' not in data:
                 coach_user = self.instance.coach_user_id
 
         if not schedule_day or not start_time or not end_time:
@@ -134,9 +180,13 @@ class BatchSerializer(serializers.ModelSerializer):
                     current_capacity += ob.max_students
             
             if current_capacity > total_capacity_limit:
+                extra_students = current_capacity - total_capacity_limit
                 raise serializers.ValidationError(
-                    f"Total capacity limit of {total_capacity_limit} students exceeded. "
-                    f"At {tp}, existing batches plus this one would allow {current_capacity} students."
+                    (
+                        f"Academy capacity is limited to {total_capacity_limit} students at the same time. "
+                        f"This batch would exceed that limit by {extra_students} students at {tp.strftime('%H:%M')}. "
+                        f"Please reduce the class capacity."
+                    )
                 )
 
         return data
@@ -145,12 +195,15 @@ class CoachBatchApplicationSerializer(serializers.ModelSerializer):
     coach_name = serializers.SerializerMethodField()
     batch_name = serializers.CharField(source='batch.batch_name', read_only=True)
     batch_schedule = serializers.SerializerMethodField()
+    conflict_warning = serializers.SerializerMethodField()
+    has_conflict = serializers.SerializerMethodField()
     
     class Meta:
         model = CoachBatchApplication
         fields = [
             'id', 'batch', 'batch_name', 'batch_schedule', 'coach', 'coach_name',
-            'application_message', 'status', 'admin_notes', 'application_date', 'decision_date'
+            'application_message', 'status', 'admin_notes', 'application_date', 'decision_date',
+            'conflict_warning', 'has_conflict'
         ]
         read_only_fields = ['id', 'status', 'admin_notes', 'decision_date', 'application_date', 'coach']
         
@@ -160,6 +213,33 @@ class CoachBatchApplicationSerializer(serializers.ModelSerializer):
 
     def get_coach_name(self, obj):
         return obj.coach.get_full_name() if obj.coach else "Unknown Coach"
+
+    def get_conflict_warning(self, obj):
+        conflicts = get_coach_batch_conflicts(obj.coach, obj.batch, exclude_application_id=obj.id)
+        return ' | '.join(conflicts)
+
+    def get_has_conflict(self, obj):
+        return bool(get_coach_batch_conflicts(obj.coach, obj.batch, exclude_application_id=obj.id))
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        coach = attrs.get('coach') or getattr(request, 'user', None)
+        batch = attrs.get('batch') or getattr(self.instance, 'batch', None)
+
+        if not coach or not batch:
+            return attrs
+
+        if batch.coach_user and batch.coach_user_id != coach.id:
+            raise serializers.ValidationError('This batch already has a coach assigned.')
+
+        conflicts = get_coach_batch_conflicts(coach, batch, exclude_application_id=getattr(self.instance, 'id', None))
+        if conflicts:
+            raise serializers.ValidationError({
+                'batch': 'You already have another class or application in this time slot.',
+                'conflicts': conflicts,
+            })
+
+        return attrs
 
 
 class BatchEnrollmentSerializer(serializers.ModelSerializer):

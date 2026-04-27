@@ -1,3 +1,9 @@
+/**
+ * Page component: Addchild.
+ * 
+ * Defines a route/page-level React component.
+ */
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
@@ -8,6 +14,7 @@ const AddChild = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
+        nic: '',
         first_name: '',
         last_name: '',
         date_of_birth: '',
@@ -54,6 +61,18 @@ const AddChild = () => {
                 <div className="p-5 bg-white">
                     <form onSubmit={handleSubmit}>
                         <div className="row g-4">
+                            <div className="col-md-6">
+                                <label className="form-label fw-bold small text-secondary">NIC</label>
+                                <input
+                                    type="text"
+                                    name="nic"
+                                    value={formData.nic}
+                                    onChange={handleChange}
+                                    className="form-control bg-light border-0 py-2"
+                                    placeholder="Enter child's NIC"
+                                    required
+                                />
+                            </div>
                             <div className="col-md-6">
                                 <label className="form-label fw-bold small text-secondary">First Name</label>
                                 <input

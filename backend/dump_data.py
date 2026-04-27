@@ -1,3 +1,7 @@
+"""Backend module: backend/dump_data.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')

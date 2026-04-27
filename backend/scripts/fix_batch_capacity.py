@@ -1,3 +1,7 @@
+"""Backend module: backend/scripts/fix_batch_capacity.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import django
 from datetime import time, timedelta

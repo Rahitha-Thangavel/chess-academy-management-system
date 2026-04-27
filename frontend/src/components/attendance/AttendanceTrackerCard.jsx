@@ -1,3 +1,9 @@
+/**
+ * UI component: Attendancetrackercard.
+ * 
+ * Reusable React UI component used across the app.
+ */
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const DAY_CODE_MAP = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];

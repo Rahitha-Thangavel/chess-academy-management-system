@@ -1,3 +1,7 @@
+"""Backend module: backend/check_roles.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import django
 from django.conf import settings

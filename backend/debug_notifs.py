@@ -1,3 +1,7 @@
+"""Backend module: backend/debug_notifs.py.
+
+Helpers, utilities, or logic for the chess academy management system."""
+
 import os
 import django
 

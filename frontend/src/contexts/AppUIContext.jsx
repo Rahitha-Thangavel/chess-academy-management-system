@@ -1,3 +1,9 @@
+/**
+ * Frontend module: frontend/src/contexts/AppUIContext.jsx.
+ * 
+ * Part of the chess academy management system UI.
+ */
+
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import { toast } from 'react-toastify';

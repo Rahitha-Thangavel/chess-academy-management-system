@@ -1,3 +1,7 @@
+"""Students app models.
+
+Defines Django ORM models used by the students app."""
+
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -12,6 +16,7 @@ class Student(models.Model):
 
     id = models.CharField(primary_key=True, max_length=20, editable=False)
     # student_code removed as it is now the PK
+    nic = models.CharField(max_length=12, unique=True, null=True, blank=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     date_of_birth = models.DateField()
